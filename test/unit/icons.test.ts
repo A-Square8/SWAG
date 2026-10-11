@@ -186,4 +186,14 @@ describe("Uncropped Scaling & Sizing in Templates", () => {
     expect(html).toContain("<svg xmlns=\"http://www.w3.org/2000/svg\"");
     expect(html).not.toContain("⚡");
   });
+
+  it("should accurately resolve multi-word tech queries without false R programming language matches", () => {
+    expect(IconEngine.resolveKey("Gemini 1.5 Flash (Concurrent Reasoning)")).toBe("sparkles");
+    expect(IconEngine.resolveKey("Gemini 1.5 Pro (Deep Synthesis)")).toBe("sparkles");
+    expect(IconEngine.resolveKey("Gradio Custom Obsidian & Gold CSS")).toBe("layers");
+    expect(IconEngine.resolveKey("Async Python Real-time Streaming")).toBe("python");
+    expect(IconEngine.resolveKey("Zero-Secret Client Security")).toBe("shield");
+    expect(IconEngine.resolveKey("React")).toBe("react");
+    expect(IconEngine.resolveKey("R")).toBe("r");
+  });
 });

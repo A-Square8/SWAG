@@ -157,7 +157,7 @@ const ALIAS_MAP: Record<string, string> = {
   wasm: "webassembly",
   webassembly: "webassembly",
 
-  // UI
+  // UI & General
   check: "checkmark",
   checkmark: "checkmark",
   done: "checkmark",
@@ -177,6 +177,24 @@ const ALIAS_MAP: Record<string, string> = {
   screenshot: "camera",
   layers: "layers",
   code: "code",
+
+  // AI & Architecture
+  ai: "sparkles",
+  gemini: "sparkles",
+  gradio: "layers",
+  llm: "sparkles",
+  adversarial: "shield",
+  decision: "sparkles",
+  debate: "sparkles",
+  pipeline: "layers",
+  architecture: "layers",
+    // AI & Architecture
+    secret: "shield",
+    privacy: "shield",
+    auth: "shield",
+    concurrent: "zap",
+    concurrency: "zap",
+    reasoning: "sparkles",
 };
 
 export interface SvgRenderOptions {
@@ -194,24 +212,48 @@ export class IconEngine {
    */
   public static resolveKey(query: string): string | undefined {
     if (!query) return undefined;
-    const clean = query
-      .toLowerCase()
-      .trim()
-      .replace(/^@/, "")
-      .replace(/[\s\-_]+/g, "");
+    const raw = query.toLowerCase().trim().replace(/^@/, "");
 
+    // 1. Exact match on raw clean string
+    const clean = raw.replace(/[\s\-_]+/g, "");
     if (ICON_CATALOG[clean]) return clean;
     if (ALIAS_MAP[clean]) return ALIAS_MAP[clean];
 
-    // Try without numbers or special symbols (e.g. "python3.11" -> "python")
+    // 2. Exact match on alpha-only (e.g. "python3.11" -> "python")
     const alphaOnly = clean.replace(/[^a-z]/g, "");
     if (ICON_CATALOG[alphaOnly]) return alphaOnly;
     if (ALIAS_MAP[alphaOnly]) return ALIAS_MAP[alphaOnly];
 
-    // Substring match in keys
-    for (const key of Object.keys(ICON_CATALOG)) {
-      if (clean.includes(key) || key.includes(clean)) {
+    // 3. Tokenize by words/punctuation and match individual tokens
+    // e.g. "Gemini 1.5 Flash (Concurrent Reasoning)" -> ["gemini", "1.5", "flash", "concurrent", "reasoning"]
+    const tokens = raw.split(/[\s,/:;()\[\]{}+&|\\_-]+/).filter(Boolean);
+    for (const token of tokens) {
+      const cleanToken = token.replace(/[^a-z0-9]/g, "");
+      if (cleanToken) {
+        if (ICON_CATALOG[cleanToken]) return cleanToken;
+        if (ALIAS_MAP[cleanToken]) return ALIAS_MAP[cleanToken];
+
+        const alphaToken = cleanToken.replace(/[^a-z]/g, "");
+        if (alphaToken) {
+          if (ICON_CATALOG[alphaToken]) return alphaToken;
+          if (ALIAS_MAP[alphaToken]) return ALIAS_MAP[alphaToken];
+        }
+      }
+    }
+
+    // 4. Safe fuzzy substring match (strictly for length >= 4 to avoid 1-2 char false positives like "r")
+    const candidateKeys = Object.keys(ICON_CATALOG).sort((a, b) => b.length - a.length);
+    for (const key of candidateKeys) {
+      if (key.length >= 4 && clean.includes(key)) {
         return key;
+      }
+    }
+
+    // 5. Safe alias substring match for length >= 4
+    const candidateAliases = Object.keys(ALIAS_MAP).sort((a, b) => b.length - a.length);
+    for (const alias of candidateAliases) {
+      if (alias.length >= 4 && clean.includes(alias)) {
+        return ALIAS_MAP[alias];
       }
     }
 

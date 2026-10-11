@@ -10,7 +10,7 @@ import { BrandKitManager } from "../../brand/index.js";
 import { AssetManager } from "../../assets/index.js";
 import { OutputManager } from "../../output/index.js";
 import { generateSlideHtml } from "./templates.js";
-import { join, pathExists } from "../../../utils/fs.js";
+import { join, resolvePath, fileToDataUrl } from "../../../utils/fs.js";
 import { SwagError } from "../../../utils/errors.js";
 import { logger } from "../../../utils/logger.js";
 
@@ -75,11 +75,12 @@ export class ImageRenderer {
 
       // Read logo as data URL if available
       let logoDataUrl: string | undefined;
-      if (brandKit.logo?.filePath) {
-        const logoPath = join(projectPath, brandKit.logo.filePath);
-        if (await pathExists(logoPath)) {
-          const buf = await readFile(logoPath);
-          logoDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      const logoFilePath = await BrandKitManager.resolveLogoFilePath(projectPath, brandKit);
+      if (logoFilePath) {
+        const dataUrl = await fileToDataUrl(logoFilePath);
+        if (dataUrl) {
+          logoDataUrl = dataUrl;
+          log.info(`Resolved brand logo from: ${logoFilePath}`);
         }
       }
 
@@ -94,11 +95,10 @@ export class ImageRenderer {
         if (slide.content.assetId) {
           const asset = await AssetManager.getAsset(projectPath, slide.content.assetId);
           if (asset) {
-            const assetPath = join(projectPath, asset.filePath);
-            if (await pathExists(assetPath)) {
-              const buf = await readFile(assetPath);
-              const mime = assetPath.endsWith(".png") ? "image/png" : "image/jpeg";
-              assetDataUrl = `data:${mime};base64,${buf.toString("base64")}`;
+            const assetPath = resolvePath(projectPath, asset.filePath);
+            const dataUrl = await fileToDataUrl(assetPath);
+            if (dataUrl) {
+              assetDataUrl = dataUrl;
             }
           }
         }

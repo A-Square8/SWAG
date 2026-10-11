@@ -4,3 +4,6 @@ dist/
 swag-output/
 *.tsbuildinfo
 .DS_Store
+demo
+d1/
+di/

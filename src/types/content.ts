@@ -72,6 +72,7 @@ export const ReelSceneSchema = z.object({
     text: z.string().optional().describe("On-screen caption/headline"),
     assetId: z.string().optional().describe("Asset UUID for video/screenshot"),
     narrationText: z.string().optional().describe("Spoken text for TTS"),
+    items: z.array(z.string()).optional().describe("Bullet points or tech stack items"),
   }),
   transition: z.string().default("fade"),
 });
@@ -111,6 +112,7 @@ export const VideoSectionSchema = z.object({
     "challenges",
     "future",
     "outro",
+    "raw-demo",
     "custom",
   ]),
   title: z.string(),
@@ -119,8 +121,45 @@ export const VideoSectionSchema = z.object({
   assetIds: z.array(z.string()).default([]),
   estimatedDuration: z.number().default(15),
   lowerThird: z.string().optional(),
+  items: z.array(z.string()).optional().describe("Bullet points or tech stack badges"),
 });
 export type VideoSection = z.infer<typeof VideoSectionSchema>;
+
+export const RawDemoConfigSchema = z.object({
+  enabled: z
+    .boolean()
+    .default(true)
+    .describe(
+      "Whether to append a raw high quality project demo at the end of the video (full size screen recording with soothing music, no narration)",
+    ),
+  assetId: z
+    .string()
+    .optional()
+    .describe("Asset UUID from list_assets of the screen recording to use"),
+  videoPath: z
+    .string()
+    .optional()
+    .describe("Direct file path to raw demo video recording"),
+  title: z
+    .string()
+    .default("Raw Project Demo (Live Interface)")
+    .describe("Chapter title for the raw demo section"),
+  duration: z
+    .number()
+    .optional()
+    .describe("Duration in seconds for the demo segment (defaults to video length or full recording)"),
+  musicTrack: z
+    .string()
+    .optional()
+    .describe("Optional path to custom audio track or 'soothing' preset"),
+  audioVolume: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(0.35)
+    .describe("Background music volume level (0.0 to 1.0, default: 0.35)"),
+});
+export type RawDemoConfig = z.infer<typeof RawDemoConfigSchema>;
 
 export const YouTubeVideoPlanSchema = z.object({
   platform: z.literal("youtube"),
@@ -131,7 +170,11 @@ export const YouTubeVideoPlanSchema = z.object({
   sections: z.array(VideoSectionSchema).min(1),
   captions: CaptionConfigSchema.default({}),
   subtitleLanguage: z.string().default("en"),
+  rawDemo: RawDemoConfigSchema.optional().describe(
+    "Raw high quality project demo appended after the outro (full size screen recording with soothing music and no narration)",
+  ),
 });
 export type YouTubeVideoPlan = z.infer<typeof YouTubeVideoPlanSchema>;
 
 export type PlatformPlan = PostPlan | ReelPlan | YouTubeVideoPlan;
+

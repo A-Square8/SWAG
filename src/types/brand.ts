@@ -13,22 +13,30 @@ export type PlatformFilter = z.infer<typeof PlatformFilterSchema>;
 // ---------------------------------------------------------------------------
 // LogoConfig
 // ---------------------------------------------------------------------------
-export const LogoConfigSchema = z.object({
-  filePath: z.string(),
-  position: z
-    .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
-    .default("bottom-right"),
-  size: z.number().default(48),
-  opacity: z.number().min(0).max(1).default(1),
-  margin: z.number().default(24),
-  showOn: PlatformFilterSchema.default({}),
-  showOnSlides: z
-    .union([
-      z.enum(["all", "first", "last", "first-last"]),
-      z.array(z.number()),
-    ])
-    .default("all"),
-});
+export const LogoConfigSchema = z.preprocess(
+  (val) => {
+    if (typeof val === "string") {
+      return { filePath: val };
+    }
+    return val;
+  },
+  z.object({
+    filePath: z.string(),
+    position: z
+      .enum(["top-left", "top-right", "bottom-left", "bottom-right"])
+      .default("bottom-right"),
+    size: z.number().default(48),
+    opacity: z.number().min(0).max(1).default(1),
+    margin: z.number().default(24),
+    showOn: PlatformFilterSchema.default({}),
+    showOnSlides: z
+      .union([
+        z.enum(["all", "first", "last", "first-last"]),
+        z.array(z.number()),
+      ])
+      .default("all"),
+  }),
+);
 export type LogoConfig = z.infer<typeof LogoConfigSchema>;
 
 // ---------------------------------------------------------------------------
@@ -79,21 +87,33 @@ export type OutroConfig = z.infer<typeof OutroConfigSchema>;
 // ---------------------------------------------------------------------------
 // BrandKit
 // ---------------------------------------------------------------------------
-export const BrandKitSchema = z.object({
-  logo: LogoConfigSchema.optional(),
-  brandName: z.string().optional(),
-  tagline: z.string().optional(),
-  defaultCTA: z.string().default("Follow for more projects"),
-  socials: z.array(SocialLinkSchema).default([]),
-  outro: OutroConfigSchema.default({
-    enabled: true,
-    duration: { reel: 4, youtube: 8, post: true },
-    layout: "centered",
-    showLogo: true,
-    showSocials: true,
-    showCTA: true,
-    showQR: false,
-    animation: "fade",
+export const BrandKitSchema = z.preprocess(
+  (raw) => {
+    if (raw && typeof raw === "object") {
+      const obj = { ...(raw as Record<string, unknown>) };
+      if (!obj.logo && obj.logoPath) {
+        obj.logo = obj.logoPath;
+      }
+      return obj;
+    }
+    return raw;
+  },
+  z.object({
+    logo: LogoConfigSchema.optional(),
+    brandName: z.string().optional(),
+    tagline: z.string().optional(),
+    defaultCTA: z.string().default("Follow for more projects"),
+    socials: z.array(SocialLinkSchema).default([]),
+    outro: OutroConfigSchema.default({
+      enabled: true,
+      duration: { reel: 4, youtube: 8, post: true },
+      layout: "centered",
+      showLogo: true,
+      showSocials: true,
+      showCTA: true,
+      showQR: false,
+      animation: "fade",
+    }),
   }),
-});
+);
 export type BrandKit = z.infer<typeof BrandKitSchema>;

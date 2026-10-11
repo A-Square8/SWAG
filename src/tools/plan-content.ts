@@ -219,7 +219,7 @@ export function registerPlanContent(server: McpServer): void {
         if (args.platforms.includes("youtube")) {
           const videoAsset = assets.find((a) => a.type === "recording");
           targetSchemas["youtube"] = {
-            formatDescription: "YouTubeVideoPlan JSON object to pass to render_youtube_video. Demonstrates real project video recordings (type 'recording') in demo/features sections to showcase actual user actions (e.g. adding expenses, clicking buttons, submitting data).",
+            formatDescription: "YouTubeVideoPlan JSON object to pass to render_youtube_video. Supports narrated walkthrough sections plus an appended full-size raw screen recording demo (rawDemo) after the outro with soothing background music and zero narration.",
             exampleStructure: {
               platform: "youtube",
               title: `${analysis.profile.name} — Full Architecture & Walkthrough`,
@@ -264,6 +264,13 @@ export function registerPlanContent(server: McpServer): void {
                   lowerThird: "Star on GitHub",
                 },
               ],
+              rawDemo: {
+                enabled: true,
+                title: "Raw Project Demo (Live Interface)",
+                assetId: videoAsset?.id,
+                duration: 25,
+                audioVolume: 0.35,
+              },
             },
           };
         }

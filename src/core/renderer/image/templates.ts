@@ -34,6 +34,19 @@ export function generateSlideHtml(options: RenderSlideHtmlOptions): string {
   const height = aspectRatio === "4:5" ? 1350 : 1080;
   const cssVars = tokensToCssVars(theme.tokens);
 
+  const websiteSocial = brandKit.socials.find((s) => s.platform === "website");
+  const githubSocial = brandKit.socials.find((s) => s.platform === "github");
+  const instagramSocial = brandKit.socials.find((s) => s.platform === "instagram");
+  const displayUrl = websiteSocial?.handle
+    ? websiteSocial.handle.replace(/^https?:\/\//, "")
+    : githubSocial?.handle
+      ? `github.com/${githubSocial.handle.replace(/^@/, "")}`
+      : "dirtcheapprojects.web.app";
+  const primaryHandle =
+    instagramSocial?.handle ||
+    brandKit.socials[0]?.handle ||
+    (brandKit.brandName ? `@${brandKit.brandName.toLowerCase().replace(/\s+/g, "_")}` : "@developer");
+
   // Logo overlay check
   let showLogo = false;
   if (brandKit.logo && logoDataUrl) {
@@ -66,7 +79,7 @@ export function generateSlideHtml(options: RenderSlideHtmlOptions): string {
                 <span class="dot red"></span>
                 <span class="dot yellow"></span>
                 <span class="dot green"></span>
-                <div class="browser-url-bar">localhost:3000</div>
+                <div class="browser-url-bar">${escapeHtml(displayUrl)}</div>
               </div>
               <div class="browser-viewport">
                 <img src="${assetDataUrl}" alt="Preview" />
@@ -98,7 +111,7 @@ export function generateSlideHtml(options: RenderSlideHtmlOptions): string {
               <span class="dot red"></span>
               <span class="dot yellow"></span>
               <span class="dot green"></span>
-              <div class="browser-url-bar">localhost:3000</div>
+              <div class="browser-url-bar">${escapeHtml(displayUrl)}</div>
             </div>
             <div class="browser-viewport">
               ${assetDataUrl ? `<img src="${assetDataUrl}" alt="Feature" />` : `<div class="placeholder-view">Screenshot Display</div>`}
@@ -299,6 +312,12 @@ export function generateSlideHtml(options: RenderSlideHtmlOptions): string {
       display: flex;
       align-items: center;
       gap: 12px;
+    }
+
+    .brand-logo-img {
+      height: 38px;
+      max-width: 140px;
+      object-fit: contain;
     }
 
     .carousel-indicator {
@@ -624,6 +643,7 @@ export function generateSlideHtml(options: RenderSlideHtmlOptions): string {
   <!-- Header -->
   <div class="slide-header">
     <div class="brand-mark">
+      ${logoDataUrl ? `<img src="${logoDataUrl}" class="brand-logo-img" alt="Logo" />` : ""}
       ${brandKit.brandName ? `<span>${escapeHtml(brandKit.brandName)}</span>` : ""}
     </div>
     <div class="carousel-indicator">
@@ -636,7 +656,7 @@ export function generateSlideHtml(options: RenderSlideHtmlOptions): string {
 
   <!-- Footer -->
   <div class="slide-footer">
-    <div class="footer-handle">${brandKit.socials[0]?.handle ? escapeHtml(brandKit.socials[0].handle) : ""}</div>
+    <div class="footer-handle">${escapeHtml(primaryHandle)}</div>
     <div class="footer-cta">${slideNumber < totalSlides ? "Swipe Next →" : escapeHtml(slide.content.ctaText || brandKit.defaultCTA)}</div>
   </div>
 </body>

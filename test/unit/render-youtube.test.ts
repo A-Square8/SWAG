@@ -99,4 +99,75 @@ describe("VideoRenderer YouTube Integration", () => {
     expect(metadata.platform).toBe("youtube");
     expect(metadata.sectionCount).toBe(3);
   }, 120000);
+
+  it("should append full-size raw project demo with soothing music after outro", async () => {
+    // Generate dummy 2-second demo video in tempDir
+    const demoVideoPath = join(tempDir, "demo-recording.mp4");
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execFileAsync = promisify(execFile);
+
+    await execFileAsync("ffmpeg", [
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc=duration=2:size=1920x1080:rate=30",
+      "-pix_fmt",
+      "yuv420p",
+      demoVideoPath,
+      "-y",
+    ]);
+
+    const mockPlan: YouTubeVideoPlan = {
+      platform: "youtube",
+      title: "Quick App Walkthrough",
+      description: "Walkthrough with raw demo appended.",
+      tags: ["demo"],
+      targetDuration: 30,
+      subtitleLanguage: "en",
+      sections: [
+        {
+          id: "sec-1",
+          section: "intro",
+          title: "Introduction",
+          narrationText: "Welcome to this brief overview.",
+          estimatedDuration: 3,
+        },
+        {
+          id: "sec-2",
+          section: "outro",
+          title: "Outro & Links",
+          narrationText: "Thank you for watching.",
+          estimatedDuration: 3,
+        },
+      ],
+      rawDemo: {
+        enabled: true,
+        videoPath: demoVideoPath,
+        title: "Raw Project Demo (Live Interface)",
+        duration: 3,
+        audioVolume: 0.3,
+      },
+    };
+
+    const result = await VideoRenderer.renderYouTubeVideo({
+      projectPath: tempDir,
+      plan: mockPlan,
+      preview: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.hasRawDemo).toBe(true);
+    expect(result.chapters.length).toBe(3); // 2 sections + 1 raw demo
+    expect(result.chapters[2].title).toBe("Raw Project Demo (Live Interface)");
+
+    // Script should include raw demo section
+    const scriptContent = await safeReadFile(result.scriptPath);
+    expect(scriptContent).toContain("Raw Project Demo (Live Interface)");
+
+    // Metadata should reflect raw demo
+    const metadata = (await safeReadJson(result.metadataPath)) as Record<string, unknown>;
+    expect(metadata.hasRawDemo).toBe(true);
+    expect(metadata.sectionCount).toBe(3);
+  }, 120000);
 });

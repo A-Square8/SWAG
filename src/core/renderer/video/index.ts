@@ -18,15 +18,18 @@ import { BrandKitManager } from "../../brand/index.js";
 import { AssetManager } from "../../assets/index.js";
 import { OutputManager } from "../../output/index.js";
 import { TTSManager } from "../../tts/index.js";
+import { getAudioDuration } from "../../tts/audio-utils.js";
 import { generateReelSceneHtml } from "./templates.js";
 import { generateYouTubeSectionHtml } from "./youtube-templates.js";
+import { SoothingMusicGenerator } from "./music.js";
 import { generateSrt, type SubtitleEntry } from "../subtitles.js";
 import {
   generateChapters,
   formatChaptersForDescription,
   type Chapter,
 } from "../chapters.js";
-import { ensureDir, join, pathExists, safeWriteFile } from "../../../utils/fs.js";
+import { ensureDir, join, pathExists, safeWriteFile, resolvePath, fileToDataUrl } from "../../../utils/fs.js";
+import { analyzeProject } from "../../analyzer/index.js";
 import { SwagError } from "../../../utils/errors.js";
 import { logger } from "../../../utils/logger.js";
 
@@ -83,20 +86,33 @@ export class VideoRenderer {
     const clipPaths: string[] = [];
     let totalDuration = 0;
 
+    // Detect project tech stack for dynamic badges
+    let projectTechStack: string[] | undefined;
     try {
+      const analysis = await analyzeProject({ projectPath });
+      if (analysis?.profile?.techStack?.length) {
+        projectTechStack = analysis.profile.techStack.map((t) => t.name);
+      }
+    } catch {
+      // Fall back gracefully
+    }
+
+    try {
+      const scaleFactor = 1;
       const context = await browser.newContext({
         viewport: { width: 1080, height: 1920 },
-        deviceScaleFactor: preview ? 1 : 2,
+        deviceScaleFactor: scaleFactor,
       });
       const page = await context.newPage();
 
       // Read logo if available
       let logoDataUrl: string | undefined;
-      if (brandKit.logo?.filePath) {
-        const logoPath = join(projectPath, brandKit.logo.filePath);
-        if (await pathExists(logoPath)) {
-          const buf = await readFile(logoPath);
-          logoDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      const logoFilePath = await BrandKitManager.resolveLogoFilePath(projectPath, brandKit);
+      if (logoFilePath) {
+        const dataUrl = await fileToDataUrl(logoFilePath);
+        if (dataUrl) {
+          logoDataUrl = dataUrl;
+          log.info(`Resolved brand logo for Reel: ${logoFilePath}`);
         }
       }
 
@@ -116,20 +132,28 @@ export class VideoRenderer {
           outputFilePath: audioPath,
         });
 
-        const sceneDuration = Math.max(
-          scene.duration || 4,
-          Math.ceil(audioResult.durationSeconds),
-        );
+        const audioDur = audioResult.durationSeconds;
+        const sceneDuration =
+          audioDur > 0
+            ? Math.max(Math.ceil(audioDur + 0.6), 3)
+            : Math.max(scene.duration || 4, 3);
         totalDuration += sceneDuration;
 
         // B. Render scene visual
         let videoAssetPath: string | undefined;
         let assetDataUrl: string | undefined;
+        let isMobileAsset = false;
 
         if (scene.content.assetId) {
           const asset = await AssetManager.getAsset(projectPath, scene.content.assetId);
           if (asset) {
-            const assetPath = join(projectPath, asset.filePath);
+            if (
+              asset.metadata?.device === "mobile" ||
+              (asset.metadata?.width && asset.metadata?.height && asset.metadata.width < asset.metadata.height)
+            ) {
+              isMobileAsset = true;
+            }
+            const assetPath = resolvePath(projectPath, asset.filePath);
             if (await pathExists(assetPath)) {
               if (
                 asset.type === "recording" ||
@@ -138,9 +162,8 @@ export class VideoRenderer {
               ) {
                 videoAssetPath = assetPath;
               } else {
-                const buf = await readFile(assetPath);
-                const mime = assetPath.endsWith(".png") ? "image/png" : "image/jpeg";
-                assetDataUrl = `data:${mime};base64,${buf.toString("base64")}`;
+                const dataUrl = await fileToDataUrl(assetPath);
+                if (dataUrl) assetDataUrl = dataUrl;
               }
             }
           }
@@ -154,6 +177,8 @@ export class VideoRenderer {
           brandKit,
           assetDataUrl,
           logoDataUrl,
+          isMobileAsset,
+          projectTechStack,
         });
 
         await page.setContent(html, { waitUntil: "domcontentloaded" });
@@ -168,10 +193,10 @@ export class VideoRenderer {
               const b = await locator.first().boundingBox();
               if (b && b.width > 50 && b.height > 50) {
                 videoBox = {
-                  x: Math.round(b.x),
-                  y: Math.round(b.y),
-                  width: Math.floor(b.width / 2) * 2,
-                  height: Math.floor(b.height / 2) * 2,
+                  x: Math.round(b.x * scaleFactor),
+                  y: Math.round(b.y * scaleFactor),
+                  width: Math.floor((b.width * scaleFactor) / 2) * 2,
+                  height: Math.floor((b.height * scaleFactor) / 2) * 2,
                 };
               }
             }
@@ -205,11 +230,11 @@ export class VideoRenderer {
             "-i",
             audioPath,
             "-filter_complex",
-            `[1:v]scale=${videoBox.width}:${videoBox.height}:force_original_aspect_ratio=decrease,pad=${videoBox.width}:${videoBox.height}:(ow-iw)/2:(oh-ih)/2:color=black[scaledvid];[0:v][scaledvid]overlay=${videoBox.x}:${videoBox.y}:shortest=1[outv]`,
+            `[1:v]scale=${videoBox.width}:${videoBox.height}:force_original_aspect_ratio=decrease,pad=${videoBox.width}:${videoBox.height}:(ow-iw)/2:(oh-ih)/2:color=black[scaledvid];[0:v][scaledvid]overlay=${videoBox.x}:${videoBox.y}:shortest=1[outv];[2:a]apad[outa]`,
             "-map",
             "[outv]",
             "-map",
-            "2:a",
+            "[outa]",
             "-c:v",
             "libx264",
             "-preset",
@@ -235,6 +260,8 @@ export class VideoRenderer {
             sceneImagePath,
             "-i",
             audioPath,
+            "-af",
+            "apad",
             "-c:v",
             "libx264",
             "-tune",
@@ -391,20 +418,33 @@ export class VideoRenderer {
 
     let currentTimeSec = 0;
 
+    // Detect project tech stack for dynamic badges
+    let projectTechStack: string[] | undefined;
     try {
+      const analysis = await analyzeProject({ projectPath });
+      if (analysis?.profile?.techStack?.length) {
+        projectTechStack = analysis.profile.techStack.map((t) => t.name);
+      }
+    } catch {
+      // Fall back gracefully
+    }
+
+    try {
+      const scaleFactor = 1;
       const context = await browser.newContext({
         viewport: { width: 1920, height: 1080 },
-        deviceScaleFactor: preview ? 1 : 2,
+        deviceScaleFactor: scaleFactor,
       });
       const page = await context.newPage();
 
       // Read logo if available
       let logoDataUrl: string | undefined;
-      if (brandKit.logo?.filePath) {
-        const logoPath = join(projectPath, brandKit.logo.filePath);
-        if (await pathExists(logoPath)) {
-          const buf = await readFile(logoPath);
-          logoDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      const logoFilePath = await BrandKitManager.resolveLogoFilePath(projectPath, brandKit);
+      if (logoFilePath) {
+        const dataUrl = await fileToDataUrl(logoFilePath);
+        if (dataUrl) {
+          logoDataUrl = dataUrl;
+          log.info(`Resolved brand logo for YouTube: ${logoFilePath}`);
         }
       }
 
@@ -434,10 +474,11 @@ export class VideoRenderer {
           outputFilePath: audioPath,
         });
 
-        const sectionDuration = Math.max(
-          section.estimatedDuration || 5,
-          Math.ceil(audioResult.durationSeconds),
-        );
+        const audioDur = audioResult.durationSeconds;
+        const sectionDuration =
+          audioDur > 0
+            ? Math.max(Math.ceil(audioDur + 0.8), 3)
+            : Math.max(section.estimatedDuration || 8, 4);
 
         // D. Record subtitle entry
         subtitles.push({
@@ -450,12 +491,19 @@ export class VideoRenderer {
         // E. Render section visual (supporting both video recordings and static screenshots)
         let videoAssetPath: string | undefined;
         let assetDataUrl: string | undefined;
+        let isMobileAsset = false;
 
         if (section.assetIds && section.assetIds.length > 0) {
           for (const aid of section.assetIds) {
             const asset = await AssetManager.getAsset(projectPath, aid);
             if (asset) {
-              const fullPath = join(projectPath, asset.filePath);
+              if (
+                asset.metadata?.device === "mobile" ||
+                (asset.metadata?.width && asset.metadata?.height && asset.metadata.width < asset.metadata.height)
+              ) {
+                isMobileAsset = true;
+              }
+              const fullPath = resolvePath(projectPath, asset.filePath);
               if (await pathExists(fullPath)) {
                 if (
                   asset.type === "recording" ||
@@ -465,9 +513,8 @@ export class VideoRenderer {
                   videoAssetPath = fullPath;
                   break;
                 } else if (!assetDataUrl) {
-                  const buf = await readFile(fullPath);
-                  const mime = fullPath.endsWith(".png") ? "image/png" : "image/jpeg";
-                  assetDataUrl = `data:${mime};base64,${buf.toString("base64")}`;
+                  const dataUrl = await fileToDataUrl(fullPath);
+                  if (dataUrl) assetDataUrl = dataUrl;
                 }
               }
             }
@@ -487,12 +534,14 @@ export class VideoRenderer {
               a.filePath.endsWith(".mp4"),
           );
           if (recordingAsset) {
-            const fullPath = join(projectPath, recordingAsset.filePath);
+            const fullPath = resolvePath(projectPath, recordingAsset.filePath);
             if (await pathExists(fullPath)) {
               videoAssetPath = fullPath;
             }
           }
         }
+
+        const nextSectionTitle = i + 1 < plan.sections.length ? plan.sections[i + 1].title : undefined;
 
         const html = generateYouTubeSectionHtml({
           section,
@@ -503,6 +552,9 @@ export class VideoRenderer {
           assetDataUrl,
           hasVideoAsset: Boolean(videoAssetPath),
           logoDataUrl,
+          nextSectionTitle,
+          projectTechStack,
+          isMobileAsset,
         });
 
         await page.setContent(html, { waitUntil: "domcontentloaded" });
@@ -517,10 +569,10 @@ export class VideoRenderer {
               const b = await locator.first().boundingBox();
               if (b && b.width > 50 && b.height > 50) {
                 videoBox = {
-                  x: Math.round(b.x),
-                  y: Math.round(b.y),
-                  width: Math.floor(b.width / 2) * 2,
-                  height: Math.floor(b.height / 2) * 2,
+                  x: Math.round(b.x * scaleFactor),
+                  y: Math.round(b.y * scaleFactor),
+                  width: Math.floor((b.width * scaleFactor) / 2) * 2,
+                  height: Math.floor((b.height * scaleFactor) / 2) * 2,
                 };
               }
             }
@@ -554,11 +606,11 @@ export class VideoRenderer {
             "-i",
             audioPath,
             "-filter_complex",
-            `[1:v]scale=${videoBox.width}:${videoBox.height}:force_original_aspect_ratio=decrease,pad=${videoBox.width}:${videoBox.height}:(ow-iw)/2:(oh-ih)/2:color=black[scaledvid];[0:v][scaledvid]overlay=${videoBox.x}:${videoBox.y}:shortest=1[outv]`,
+            `[1:v]scale=${videoBox.width}:${videoBox.height}:force_original_aspect_ratio=decrease,pad=${videoBox.width}:${videoBox.height}:(ow-iw)/2:(oh-ih)/2:color=black[scaledvid];[0:v][scaledvid]overlay=${videoBox.x}:${videoBox.y}:shortest=1[outv];[2:a]apad[outa]`,
             "-map",
             "[outv]",
             "-map",
-            "2:a",
+            "[outa]",
             "-c:v",
             "libx264",
             "-preset",
@@ -567,6 +619,10 @@ export class VideoRenderer {
             "aac",
             "-b:a",
             "192k",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
             "-pix_fmt",
             "yuv420p",
             "-t",
@@ -584,6 +640,8 @@ export class VideoRenderer {
             sectionImagePath,
             "-i",
             audioPath,
+            "-af",
+            "apad",
             "-c:v",
             "libx264",
             "-tune",
@@ -594,6 +652,10 @@ export class VideoRenderer {
             "aac",
             "-b:a",
             "192k",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
             "-pix_fmt",
             "yuv420p",
             "-t",
@@ -613,6 +675,143 @@ export class VideoRenderer {
       await context.close();
     } finally {
       await browser.close();
+    }
+
+    // 4.5. Append Raw High-Quality Project Demo Section (after all narrated sections & outro)
+    let rawDemoAppended = false;
+    let rawDemoDurationSec = 0;
+    const isRawDemoEnabled = plan.rawDemo?.enabled !== false;
+
+    if (isRawDemoEnabled) {
+      let rawVideoPath: string | undefined;
+
+      // 1. Try explicit videoPath
+      if (plan.rawDemo?.videoPath) {
+        const directPath = resolvePath(projectPath, plan.rawDemo.videoPath);
+        if (await pathExists(directPath)) {
+          rawVideoPath = directPath;
+        } else {
+          log.warn(`Specified raw demo videoPath not found: ${directPath}`);
+        }
+      }
+
+      // 2. Try explicit assetId
+      if (!rawVideoPath && plan.rawDemo?.assetId) {
+        const asset = await AssetManager.getAsset(projectPath, plan.rawDemo.assetId);
+        if (asset) {
+          const assetPath = resolvePath(projectPath, asset.filePath);
+          if (await pathExists(assetPath)) {
+            rawVideoPath = assetPath;
+          }
+        }
+      }
+
+      // 3. Auto-discover screen recording asset in project
+      if (!rawVideoPath) {
+        const allAssets = await AssetManager.listAssets(projectPath);
+        const recordingAsset = allAssets.find(
+          (a) =>
+            a.type === "recording" ||
+            a.filePath.endsWith(".webm") ||
+            a.filePath.endsWith(".mp4"),
+        );
+        if (recordingAsset) {
+          const assetPath = resolvePath(projectPath, recordingAsset.filePath);
+          if (await pathExists(assetPath)) {
+            rawVideoPath = assetPath;
+            log.info(`Auto-detected screen recording asset for raw demo: ${assetPath}`);
+          }
+        }
+      }
+
+      if (rawVideoPath) {
+        log.info(`Generating raw high-quality project demo clip from: ${rawVideoPath}`);
+
+        // Determine duration
+        let demoDur = plan.rawDemo?.duration;
+        if (!demoDur || demoDur <= 0) {
+          const measured = await getAudioDuration(rawVideoPath);
+          demoDur = measured > 0 ? Math.ceil(measured) : 20;
+        }
+        rawDemoDurationSec = Math.max(3, demoDur);
+
+        // Resolve soothing background music track
+        const soothingMusicPath = await SoothingMusicGenerator.resolveMusicTrack(
+          projectPath,
+          plan.rawDemo?.musicTrack,
+          rawDemoDurationSec,
+          join(tempClipsDir, "soothing-ambient.wav"),
+        );
+
+        const musicVolume =
+          typeof plan.rawDemo?.audioVolume === "number"
+            ? plan.rawDemo.audioVolume
+            : 0.35;
+
+        const rawDemoClipPath = join(tempClipsDir, "section-raw-demo.mp4");
+        const fadeOutStart = Math.max(0, rawDemoDurationSec - 2);
+
+        // Render raw full-size 1920x1080 video with soothing background music and no narration
+        await execFileAsync("ffmpeg", [
+          "-stream_loop",
+          "-1",
+          "-i",
+          rawVideoPath,
+          "-stream_loop",
+          "-1",
+          "-i",
+          soothingMusicPath,
+          "-filter_complex",
+          `[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[outv];[1:a]volume=${musicVolume},afade=t=in:ss=0:d=1.5,afade=t=out:st=${fadeOutStart}:d=2,apad[outa]`,
+          "-map",
+          "[outv]",
+          "-map",
+          "[outa]",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "-r",
+          "30",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "192k",
+          "-ar",
+          "44100",
+          "-ac",
+          "2",
+          "-t",
+          String(rawDemoDurationSec),
+          rawDemoClipPath,
+          "-y",
+        ]);
+
+        clipPaths.push(rawDemoClipPath);
+
+        const demoTitle = plan.rawDemo?.title || "Raw Project Demo (Live Interface)";
+        chapterList.push({
+          title: demoTitle,
+          startTimeSec: currentTimeSec,
+        });
+
+        scriptMarkdownLines.push(
+          `## Section ${plan.sections.length + 1}: ${demoTitle}`,
+          "",
+          "*(Raw high-quality project demo — Full size application interface working without narration, accompanied by soothing background music)*",
+          "",
+        );
+
+        currentTimeSec += rawDemoDurationSec;
+        rawDemoAppended = true;
+        log.info(`Raw project demo appended (${rawDemoDurationSec}s)`);
+      } else {
+        log.warn(
+          "Raw demo was requested/enabled, but no recording video asset was found in project. Skipping raw demo segment.",
+        );
+      }
     }
 
     // 5. Concatenate section clips into final YouTube video
@@ -688,7 +887,9 @@ export class VideoRenderer {
       tags: plan.tags,
       actualDuration: currentTimeSec,
       targetDuration: plan.targetDuration,
-      sectionCount: plan.sections.length,
+      sectionCount: plan.sections.length + (rawDemoAppended ? 1 : 0),
+      hasRawDemo: rawDemoAppended,
+      rawDemoDuration: rawDemoDurationSec,
       chapters,
       srtFile: srtPath,
       scriptFile: scriptPath,
@@ -708,7 +909,9 @@ export class VideoRenderer {
       chapters,
       actualDuration: currentTimeSec,
       version: folderInfo.version,
+      hasRawDemo: rawDemoAppended,
     };
   }
 }
+
 

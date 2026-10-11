@@ -5,7 +5,7 @@
 import { homedir } from "node:os";
 import type { BrandKit } from "../../types/index.js";
 import { BrandKitSchema } from "../../types/brand.js";
-import { safeReadJson, safeWriteJson, pathExists, join } from "../../utils/fs.js";
+import { safeReadJson, safeWriteJson, pathExists, join, resolvePath, basename } from "../../utils/fs.js";
 import { logger } from "../../utils/logger.js";
 
 const log = logger.child("brand");
@@ -52,12 +52,16 @@ export class BrandKitManager {
     if (projectPath) {
       const projectPathFile = join(projectPath, PROJECT_BRAND_FILE);
       if (await pathExists(projectPathFile)) {
-        const raw = await safeReadJson<BrandKit>(projectPathFile);
+        const raw = await safeReadJson<unknown>(projectPathFile);
         if (raw) {
           const parsed = BrandKitSchema.safeParse(raw);
           if (parsed.success) {
             log.info(`Loaded project brand kit from ${projectPathFile}`);
             return { brandKit: parsed.data, source: "project" };
+          } else {
+            log.warn(
+              `Failed to parse project brand kit at ${projectPathFile}: ${parsed.error.message}`,
+            );
           }
         }
       }
@@ -65,18 +69,60 @@ export class BrandKitManager {
 
     // 2. Check global ~/.swag/brand.json
     if (await pathExists(GLOBAL_BRAND_FILE)) {
-      const raw = await safeReadJson<BrandKit>(GLOBAL_BRAND_FILE);
+      const raw = await safeReadJson<unknown>(GLOBAL_BRAND_FILE);
       if (raw) {
         const parsed = BrandKitSchema.safeParse(raw);
         if (parsed.success) {
           log.info(`Loaded global brand kit from ${GLOBAL_BRAND_FILE}`);
           return { brandKit: parsed.data, source: "global" };
+        } else {
+          log.warn(
+            `Failed to parse global brand kit at ${GLOBAL_BRAND_FILE}: ${parsed.error.message}`,
+          );
         }
       }
     }
 
     // 3. Fallback to default
     return { brandKit: DEFAULT_BRAND_KIT, source: "default" };
+  }
+
+  /**
+   * Resolve brand logo file path, checking project root, .swag/assets, and absolute paths.
+   */
+  public static async resolveLogoFilePath(
+    projectPath: string,
+    brandKit?: BrandKit,
+  ): Promise<string | null> {
+    if (!brandKit?.logo?.filePath) {
+      const defaultLocations = [
+        join(projectPath, ".swag", "assets", "logo.png"),
+        join(projectPath, "DCP_logo.png"),
+        join(projectPath, "logo.png"),
+      ];
+      for (const loc of defaultLocations) {
+        if (await pathExists(loc)) return loc;
+      }
+      return null;
+    }
+
+    const rawPath = brandKit.logo.filePath;
+    const candidates = [
+      resolvePath(projectPath, rawPath),
+      join(projectPath, basename(rawPath)),
+      join(projectPath, ".swag", "assets", basename(rawPath)),
+      join(projectPath, ".swag", "assets", "logo.png"),
+      join(projectPath, "DCP_logo.png"),
+      join(projectPath, "logo.png"),
+    ];
+
+    for (const candidate of candidates) {
+      if (await pathExists(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 
   /**

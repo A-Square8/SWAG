@@ -16,6 +16,8 @@ export interface RenderReelSceneHtmlOptions {
   brandKit: BrandKit;
   assetDataUrl?: string;
   logoDataUrl?: string;
+  isMobileAsset?: boolean;
+  projectTechStack?: string[];
 }
 
 export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): string {
@@ -27,9 +29,24 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
     brandKit,
     assetDataUrl,
     logoDataUrl,
+    isMobileAsset = false,
+    projectTechStack,
   } = options;
 
   const cssVars = tokensToCssVars(theme.tokens);
+
+  const websiteSocial = brandKit.socials.find((s) => s.platform === "website");
+  const githubSocial = brandKit.socials.find((s) => s.platform === "github");
+  const instagramSocial = brandKit.socials.find((s) => s.platform === "instagram");
+  const displayUrl = websiteSocial?.handle
+    ? websiteSocial.handle.replace(/^https?:\/\//, "")
+    : githubSocial?.handle
+      ? `github.com/${githubSocial.handle.replace(/^@/, "")}`
+      : "dirtcheapprojects.web.app";
+  const primaryHandle =
+    instagramSocial?.handle ||
+    brandKit.socials[0]?.handle ||
+    (brandKit.brandName ? `@${brandKit.brandName.toLowerCase().replace(/\s+/g, "_")}` : "@developer");
 
   let sceneBodyHtml = "";
 
@@ -40,19 +57,28 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
           <div class="reel-header-block">
             <div class="reel-badge">
               <span class="pulsing-dot"></span>
-              <span>${brandKit.brandName || "DEV SHOWCASE"}</span>
+              <span>${brandKit.brandName ? escapeHtml(brandKit.brandName) : "DEV SHOWCASE"}</span>
             </div>
             <h1 class="reel-hero-title">${escapeHtml(scene.content.text || "Wait Until You See This...")}</h1>
           </div>
           ${
             assetDataUrl
-              ? `
+              ? isMobileAsset
+                ? `
+            <div class="reel-mobile-mockup">
+              <div class="mobile-island"><span class="mobile-camera"></span></div>
+              <div class="mobile-viewport">
+                <img src="${assetDataUrl}" alt="Preview" />
+              </div>
+            </div>
+          `
+                : `
             <div class="reel-mockup">
               <div class="mockup-header">
                 <span class="dot red"></span>
                 <span class="dot yellow"></span>
                 <span class="dot green"></span>
-                <span class="mockup-url">localhost:3000</span>
+                <span class="mockup-url">${escapeHtml(displayUrl)}</span>
               </div>
               <div class="mockup-viewport">
                 <img src="${assetDataUrl}" alt="Preview" />
@@ -70,33 +96,53 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
       sceneBodyHtml = `
         <div class="reel-feature">
           <div class="reel-header-block">
-            <div class="reel-badge">FEATURE WALKTHROUGH</div>
+            <div class="reel-badge">${scene.type === "demo" ? "LIVE DEMO" : "FEATURE SPOTLIGHT"}</div>
             <h2 class="reel-sub-title">${escapeHtml(scene.content.text || "Built for Pure Speed")}</h2>
           </div>
-          <div class="reel-mockup">
-            <div class="mockup-header">
-              <span class="dot red"></span>
-              <span class="dot yellow"></span>
-              <span class="dot green"></span>
-              <span class="mockup-url">localhost:3000</span>
+          ${
+            isMobileAsset && assetDataUrl
+              ? `
+            <div class="reel-mobile-mockup">
+              <div class="mobile-island"><span class="mobile-camera"></span></div>
+              <div class="mobile-viewport">
+                <img src="${assetDataUrl}" alt="Demo" />
+              </div>
             </div>
-            <div class="mockup-viewport">
-              ${
-                assetDataUrl
-                  ? `<img src="${assetDataUrl}" alt="Demo" />`
-                  : `<div class="placeholder-box">Live Interactive Demo</div>`
-              }
+          `
+              : `
+            <div class="reel-mockup">
+              <div class="mockup-header">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+                <span class="mockup-url">${escapeHtml(displayUrl)}</span>
+              </div>
+              <div class="mockup-viewport">
+                ${
+                  assetDataUrl
+                    ? `<img src="${assetDataUrl}" alt="Demo" />`
+                    : `<div class="placeholder-box">Live Interactive Demo</div>`
+                }
+              </div>
             </div>
-          </div>
+          `
+          }
         </div>
       `;
       break;
 
     case "tech":
+      const rawTechItems =
+        scene.content.items && scene.content.items.length > 0
+          ? scene.content.items
+          : projectTechStack && projectTechStack.length > 0
+            ? projectTechStack
+            : ["Python", "Google Gemini 1.5", "Gradio UI", "FastAPI", "Multi-Agent Matrix"];
+
       sceneBodyHtml = `
         <div class="reel-tech">
           <div class="reel-header-block">
-            <div class="reel-badge">TECH STACK</div>
+            <div class="reel-badge">TECH STACK & ARCHITECTURE</div>
             <h2 class="reel-sub-title">${escapeHtml(scene.content.text || "The Engineering Behind It")}</h2>
           </div>
           ${
@@ -107,7 +153,7 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
                 <span class="dot red"></span>
                 <span class="dot yellow"></span>
                 <span class="dot green"></span>
-                <span class="mockup-url">localhost:3000</span>
+                <span class="mockup-url">${escapeHtml(displayUrl)}</span>
               </div>
               <div class="mockup-viewport">
                 <img src="${assetDataUrl}" alt="Stack" />
@@ -116,11 +162,12 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
           `
               : `
             <div class="tech-pill-list">
-              ${["TypeScript", "React", "Next.js", "Tailwind CSS", "PostgreSQL"]
+              ${rawTechItems
+                .slice(0, 5)
                 .map(
                   (tech) => `
                 <div class="tech-pill">
-                  <span class="tech-pill-icon">${IconEngine.getSvg(tech, { size: 36 })}</span>
+                  <span class="tech-pill-icon">${IconEngine.getSvg(tech.split(/[\s(&:]+/)[0], { size: 36 })}</span>
                   <span>${escapeHtml(tech)}</span>
                 </div>
               `,
@@ -136,12 +183,16 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
     case "outro":
       sceneBodyHtml = `
         <div class="reel-outro">
-          ${logoDataUrl ? `<img src="${logoDataUrl}" class="outro-logo" />` : `<div class="outro-icon">${IconEngine.getSvg("zap", { size: 96, color: "var(--swag-primary, #6366f1)" })}</div>`}
-          <h1 class="reel-hero-title">${escapeHtml(scene.content.text || "Build Yours Today")}</h1>
-          <p class="reel-desc">${escapeHtml(brandKit.defaultCTA || "Link in bio to view project")}</p>
-          <div class="reel-handle">
-            <span class="handle-icon">${IconEngine.getSvg(brandKit.socials[0]?.platform || "github", { size: 28 })}</span>
-            <span>${brandKit.socials[0]?.handle ? escapeHtml(brandKit.socials[0].handle) : "@developer"}</span>
+          ${logoDataUrl ? `<img src="${logoDataUrl}" class="outro-logo" alt="Logo" />` : `<div class="outro-icon">${IconEngine.getSvg("zap", { size: 96, color: "var(--swag-primary, #6366f1)" })}</div>`}
+          <h1 class="reel-hero-title">${escapeHtml(scene.content.text || (brandKit.brandName ? `Explore ${brandKit.brandName}` : "Build Yours Today"))}</h1>
+          <p class="reel-desc">${escapeHtml(brandKit.defaultCTA || "Link in bio to view full code & documentation")}</p>
+          <div class="reel-socials-row">
+            ${brandKit.socials.slice(0, 3).map((s) => `
+              <div class="reel-handle">
+                <span class="handle-icon">${IconEngine.getSvg(s.platform, { size: 24 })}</span>
+                <span>${escapeHtml(s.handle)}</span>
+              </div>
+            `).join("")}
           </div>
         </div>
       `;
@@ -410,12 +461,20 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
       object-fit: contain;
     }
 
+    .reel-socials-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      max-width: 860px;
+    }
+
     .reel-handle {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--swag-border);
       padding: 16px 36px;
       border-radius: 40px;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       color: var(--swag-primary);
       display: inline-flex;
@@ -428,12 +487,107 @@ export function generateReelSceneHtml(options: RenderReelSceneHtmlOptions): stri
       align-items: center;
       justify-content: center;
     }
+
+    /* Mobile Phone Mockup */
+    .reel-mobile-mockup {
+      width: 440px;
+      height: 940px;
+      border-radius: 46px;
+      background: var(--swag-card);
+      border: 4px solid var(--swag-border);
+      box-shadow: 0 35px 80px rgba(0, 0, 0, 0.65);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      margin: auto 0;
+    }
+
+    .mobile-island {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 26px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mobile-camera {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #1e293b;
+    }
+
+    .mobile-viewport {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mobile-viewport img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    /* Burned-in Spoken Captions */
+    .reel-caption-overlay {
+      position: absolute;
+      bottom: 180px;
+      left: 48px;
+      right: 48px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 80;
+      pointer-events: none;
+    }
+
+    .reel-caption-box {
+      background: rgba(10, 15, 29, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      padding: 18px 32px;
+      border-radius: 24px;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.4;
+      color: #ffffff;
+      text-align: center;
+      max-width: 920px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
   </style>
 </head>
 <body>
   <div class="safe-zone-content">
     ${sceneBodyHtml}
   </div>
+
+  ${
+    scene.content.narrationText && scene.type !== "outro"
+      ? `
+    <div class="reel-caption-overlay">
+      <div class="reel-caption-box">
+        ${escapeHtml(scene.content.narrationText)}
+      </div>
+    </div>
+  `
+      : ""
+  }
 </body>
 </html>
   `;

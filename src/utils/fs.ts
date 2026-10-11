@@ -3,7 +3,7 @@
  */
 
 import { readFile, readdir, stat, access, mkdir } from "node:fs/promises";
-import { join, resolve, relative, basename } from "node:path";
+import { join, resolve, relative, basename, isAbsolute, extname } from "node:path";
 import { constants } from "node:fs";
 
 /**
@@ -158,4 +158,34 @@ export async function buildFolderStructure(
   return lines.join("\n");
 }
 
-export { join, resolve, relative, basename };
+/**
+ * Safely resolve a path that might be relative to a base or already absolute.
+ */
+export function resolvePath(basePath: string, targetPath: string): string {
+  if (isAbsolute(targetPath)) return targetPath;
+  return join(basePath, targetPath);
+}
+
+/**
+ * Read image file and convert to data URI with appropriate mime type.
+ */
+export async function fileToDataUrl(filePath: string): Promise<string | null> {
+  try {
+    if (!(await pathExists(filePath))) return null;
+    const buf = await readFile(filePath);
+    const ext = extname(filePath).toLowerCase();
+    const mime =
+      ext === ".svg"
+        ? "image/svg+xml"
+        : ext === ".webp"
+          ? "image/webp"
+          : ext === ".jpg" || ext === ".jpeg"
+            ? "image/jpeg"
+            : "image/png";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+export { join, resolve, relative, basename, isAbsolute, extname };

@@ -27,7 +27,7 @@ const InputSchema = {
 export function registerRenderYoutubeVideo(server: McpServer): void {
   server.tool(
     "render_youtube_video",
-    "Render a full widescreen 16:9 YouTube video walkthrough (3-4 minutes) from agent-filled sections, complete with voice narration, lower thirds, device mockups, .srt subtitles, chapter markers, and script.md.",
+    "Render a full widescreen 16:9 YouTube video walkthrough (3-4 minutes) from agent-filled sections, complete with voice narration, lower thirds, device mockups, .srt subtitles, chapter markers, script.md, and an appended raw high-quality full-size project demo with soothing background music.",
     InputSchema,
     async (args) => {
       try {

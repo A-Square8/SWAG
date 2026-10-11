@@ -47,6 +47,7 @@ export type {
   CaptionConfig,
   ReelPlan,
   VideoSection,
+  RawDemoConfig,
   YouTubeVideoPlan,
   PlatformPlan,
 } from "./content.js";
@@ -57,6 +58,7 @@ export {
   CaptionConfigSchema,
   ReelPlanSchema,
   VideoSectionSchema,
+  RawDemoConfigSchema,
   YouTubeVideoPlanSchema,
 } from "./content.js";
 

@@ -46,5 +46,6 @@ export const YouTubeRenderResultSchema = z.object({
   ),
   actualDuration: z.number(),
   version: z.number(),
+  hasRawDemo: z.boolean().optional(),
 });
 export type YouTubeRenderResult = z.infer<typeof YouTubeRenderResultSchema>;
