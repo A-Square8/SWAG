@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.swag/
+swag-output/
+*.tsbuildinfo
+.DS_Store

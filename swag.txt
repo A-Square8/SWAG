@@ -1,0 +1,119 @@
+# Project: SWAG, an MCP server that turns a portfolio project into publishable social media content
+
+## 1. Goal
+Build **SWAG**, a universal MCP server (works with any agentic IDE or MCP client: Claude Code, Cursor, Windsurf, VS Code Copilot, Zed, Cline, etc.). Given a project folder, it must understand the project, run it, capture screenshots and screen recordings, and produce:
+1. Instagram posts (single image and carousel)
+2. Instagram Reels (vertical short video)
+3. A long-form YouTube video (3-4 minutes, narrated)
+
+Scope for v1: **web-interface projects only**. Non-web projects are out of scope, but leave room in the architecture.
+
+## 2. Architecture principles
+- **Transport:** stdio MCP server (TypeScript + official `@modelcontextprotocol/sdk`). No client-specific code.
+- **No separate AI key for SWAG. Hard rule.** All creative reasoning (captions, hooks, scripts, narration, hashtags) is done by the **host agent's LLM**, using the user's existing agent credits. SWAG never calls an LLM itself and never uses MCP sampling (many clients lack it). Flow: tools return structured data and JSON schemas -> the agent fills them in -> the agent submits them in a later tool call -> SWAG validates and renders.
+- **Division of labor:** SWAG does the deterministic work (analysis, running the app, capture, rendering, TTS, saving files). The agent does the thinking.
+- **Rendering:** Playwright for capture. HTML/CSS templates rendered through Playwright for images. Remotion (FFmpeg fallback) for video.
+- **TTS:** pluggable provider interface. **Default is keyless and local** (Piper or edge-tts) so no key is ever required. Cloud providers (Deepgram Aura, ElevenLabs, etc.) are optional and read keys only from env vars if the user chooses them.
+- **Config:** `swag.config.json` in the project root, with sensible defaults when absent. Everything below is configurable via config, tool arguments, or the GUI.
+
+## 3. Content building blocks (strict)
+All generated content is composed **only** from these four element types:
+1. **Text**
+2. **Images** (screenshots, user images, the logo PNG)
+3. **GIFs**
+4. **Short video clips** (screen recordings, user clips)
+
+No other visual element types are used in the output: no AI-generated images, stock footage, charts, or 3D. Shapes, backgrounds, and animations are limited to what the theme and templates provide as styling around those four types. Audio (TTS narration) is an output of the pipeline, not a visual element. Auto-captured and user-supplied assets live in one asset library per project (`.swag/assets/`). If a user adds an unsupported file, skip it with a clear warning instead of crashing.
+
+## 4. Theming
+- **Auto-detect the IDE theme and typography** by reading editor config (VS Code/Cursor/Windsurf `settings.json` plus the active theme's colors, Zed `settings.json`, etc.). If detection fails, fall back to Dark or Light and tell the user.
+- **Overrides:** background, text, accent, secondary colors, font family (heading/body/code), font sizes, corner radius, via config, tool args, or GUI. Google Fonts or user-uploaded font files are allowed.
+- **Presets:** Dark Mode and Light Mode, plus user-saved custom presets.
+- Templates consume only design tokens (CSS variables), never hardcoded colors.
+- Automatic **contrast check** (warn if text/background fails WCAG AA).
+
+## 5. Styles
+Professional, Casual, Minimalist, Artistic, Humorous. Each style is a data-driven preset: tone guidance for the agent, template set, motion/pacing settings, and transition set. No scattered if-statements. Users can duplicate a style and tweak it into a custom style.
+
+## 6. Platform specs
+| Output | Resolution | Notes |
+|---|---|---|
+| Instagram post | 1080x1350 (4:5), optional 1080x1080 | Single or carousel (up to 10 slides), PNG/JPG |
+| Instagram Reel | 1080x1920 (9:16), 15-60s, MP4 H.264 | Burned-in captions, safe zones respected |
+| YouTube video | 1920x1080 (16:9), 3-4 min, MP4 | Narrated, chaptered, subtitles (.srt) |
+
+## 7. Project understanding and auto-capture
+1. **Analyze:** read README, package.json / requirements / lockfiles, folder structure, routes, config, docs. Detect tech stack, run command, port, entry points. Return a structured `ProjectProfile` (name, tagline, features[], tech stack[], how it works, architecture summary, run instructions). The agent can review and correct it.
+2. **Run:** start the dev server as a managed child process, wait for readiness (port/health check, timeout, clear errors), always clean up on exit.
+3. **Explore and capture:** Playwright crawls key routes and interactions, takes viewport and full-page screenshots, and records short clips of key flows. The user or agent can supply flows/selectors to record.
+4. **Catalog:** store everything in `.swag/assets/` with metadata (route, description, dimensions, duration).
+5. **Capture options:** viewport/device (desktop, tablet, mobile), light/dark capture, login credentials or demo-data seed script for apps behind auth, routes to include/exclude, wait/delay rules, and slow-motion or cursor highlighting for recordings.
+6. **Privacy protection:** auto-detect and blur likely sensitive data in captures (emails, API keys, tokens, `.env` values), with manual blur regions in the GUI.
+
+## 8. Customization (user experience)
+
+### 8.1 Brand kit
+- **Logo:** user uploads a **PNG** (team/company/personal), placed by default in the **bottom-right corner** of all outputs. Configurable: position (4 corners), size, opacity, margin, which platforms show it, and whether it appears on every slide/scene or only some. Validate PNG, prefer transparency, and warn if resolution is too low. It must respect Instagram safe zones (not covered by the Reel UI).
+- **Social links / handles:** Instagram, YouTube, GitHub, LinkedIn, X, portfolio website, email, plus custom links. Each has an icon, label, and display order.
+- **Brand name, tagline, and default CTA text** (for example "Follow for more projects").
+- Brand kit is saved once and reused across projects (global `~/.swag/brand.json`, overridable per project).
+
+### 8.2 Outro
+- **User-configurable outro on Reels and the YouTube video:** social links and handles clearly visible, plus logo, CTA text, and optional QR code for a link.
+- Last slide of an Instagram carousel can use the same outro design.
+- Options: outro duration, layout template, animation, on/off per platform. Defaults: 4-5s on Reels, 8-10s on YouTube.
+- For YouTube, the narration can read a short outro line.
+
+### 8.3 Content controls
+- Choose which features to highlight, which to skip, and which routes or screens must never appear.
+- Slide count (posts), target duration (reels/video), and pacing.
+- Intro on/off, custom hook text, custom title cards.
+- **Video sections:** defaults are Intro/Hook, Problem & Motivation, Key Features, How It Works, Tech Stack, Demo Walkthrough, Challenges & Learnings, Future Improvements, Outro/CTA. Users can add, remove, reorder, rename, rewrite, or set the duration of each section, and write custom ones.
+- Captions: on/off, style, position, highlight-active-word, font size.
+- Narration language and subtitle language (the agent writes in the chosen language).
+- Hashtags: count, custom fixed hashtags always included, banned words.
+- Device frames around screenshots (browser window, phone frame, none), with shadows, rounded corners, and zoom/pan (Ken Burns) on screenshots.
+- Narration voice, speed, gender, and accent (provider-dependent).
+- Per-platform overrides (for example, a different logo position for Reels than for YouTube).
+
+### 8.4 Workflow
+- **Preview before final render** (low-res draft), with approval gates for plan -> script -> render.
+- **Regenerate a single slide or scene** without redoing everything.
+- **Versioning:** each render is saved as a new version, nothing is overwritten.
+- **Reusable presets:** save a whole combination of theme + style + brand + outro and reuse it on other projects.
+- Batch mode: generate all three platforms in one run, consistent in look.
+
+## 9. YouTube video pipeline
+`ProjectProfile` -> agent writes **script + narration** as a structured scene list (scene id, section, narration text, asset reference, on-screen text, duration estimate) -> TTS -> timeline composition -> render. Sync scene length to actual TTS audio duration, not estimates. Include lower thirds, animated tech-stack badges, subtitles (`.srt`), chapters, and the outro. Background music is optional and off by default (only a user-supplied file, no bundled music).
+
+## 10. MCP tools (initial proposal, refine during planning)
+`analyze_project`, `capture_project`, `list_assets`, `add_asset`, `get_theme` / `set_theme`, `get_brand_kit` / `set_brand_kit` (logo, socials, outro), `get_style_presets`, `plan_content` (returns schema for the agent to fill), `render_instagram_post`, `render_instagram_reel`, `render_youtube_video`, `list_outputs`, `open_gui`.
+
+## 11. Output saving and naming
+Save into the project folder under `swag-output/` (pattern configurable):
+- Posts: `swag-output/instagram/posts/{project}_post_{style}_{YYYYMMDD-HHmm}_{nn}.png`
+- Reels: `swag-output/instagram/reels/{project}_reel_{style}_{YYYYMMDD-HHmm}.mp4`
+- YouTube: `swag-output/youtube/{project}_video_{style}_{YYYYMMDD-HHmm}.mp4` (+ `.srt`, script `.md`)
+Each output also gets a `metadata.json` (caption, hashtags, title, description, chapters) ready to paste when publishing.
+
+## 12. GUI
+Local web dashboard on localhost, launched by `open_gui`. Features: project profile editor, asset library, theme picker (Dark/Light + custom colors/fonts), style selector, platform selector, **brand kit editor (logo upload, social links)**, **outro designer**, video section editor, script/narration editor, privacy blur editor, live preview, render progress, output browser. GUI and MCP tools share one core library so behavior is identical.
+
+## 13. Non-functional requirements
+- Cross-platform (Windows, macOS, Linux). Detect FFmpeg/Chromium and give clear install guidance.
+- No secrets in logs. Optional keys only via env vars. Nothing required.
+- Graceful failures with actionable error messages for the agent.
+- Unit tests for analysis, naming, and theming. End-to-end test with a small sample web app.
+- README with MCP config snippets for several IDEs.
+
+## 14. How I want you to work
+1. First, **don't write code**. Produce a plan: architecture, folder structure, data models (`ProjectProfile`, `Asset`, `Theme`, `BrandKit`, `OutroConfig`, `StylePreset`, `ContentPlan`), tool schemas, risks, questions, and assumptions.
+2. Then build in milestones, pausing after each for my review:
+   - M1: MCP skeleton + `analyze_project`
+   - M2: run + Playwright capture + asset catalog + privacy blur
+   - M3: theming + style system + brand kit (logo) + Instagram posts
+   - M4: Reels + outro
+   - M5: YouTube pipeline (script schema, keyless TTS, composition, outro)
+   - M6: GUI
+   - M7: tests, docs, packaging (`npx swag-mcp`)
+3. Create a `CLAUDE.md` with conventions and keep it updated.

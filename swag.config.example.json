@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "defaultStyle": "professional",
+  "output": {
+    "directory": "swag-output",
+    "namingPattern": "{platform}/v{version}/{filename}"
+  },
+  "content": {
+    "defaultSlideCount": 5,
+    "defaultReelDuration": 30,
+    "defaultVideoDuration": 180,
+    "hashtagCount": 15,
+    "fixedHashtags": [
+      "#webdev",
+      "#programming",
+      "#opensource",
+      "#coding"
+    ],
+    "bannedWords": [],
+    "narrationLanguage": "en",
+    "subtitleLanguage": "en",
+    "deviceFrame": "browser",
+    "deviceFrameShadow": true,
+    "kenBurns": true
+  },
+  "tts": {
+    "provider": "edge-tts",
+    "voice": "en-US-ChristopherNeural",
+    "speed": 1.0,
+    "gender": "male",
+    "accent": "en-US"
+  },
+  "platformOverrides": {
+    "instagramPost": {
+      "defaultStyle": "artistic"
+    },
+    "instagramReel": {
+      "defaultStyle": "casual"
+    },
+    "youtube": {
+      "defaultStyle": "professional"
+    }
+  }
+}
