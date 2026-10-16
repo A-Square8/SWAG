@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const OutputEntrySchema = z.object({
   version: z.number(),
-  platform: z.enum(["instagram-post", "instagram-reel", "youtube"]),
+  platform: z.string(),
   createdAt: z.string(),
   paths: z.array(z.string()),
   metadataPath: z.string(),

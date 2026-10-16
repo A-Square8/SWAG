@@ -97,8 +97,11 @@ export class BrandKitManager {
     if (!brandKit?.logo?.filePath) {
       const defaultLocations = [
         join(projectPath, ".swag", "assets", "logo.png"),
-        join(projectPath, "DCP_logo.png"),
+        join(projectPath, ".swag", "assets", "logo.svg"),
         join(projectPath, "logo.png"),
+        join(projectPath, "logo.svg"),
+        join(projectPath, "icon.png"),
+        join(projectPath, "icon.svg"),
       ];
       for (const loc of defaultLocations) {
         if (await pathExists(loc)) return loc;
@@ -112,8 +115,11 @@ export class BrandKitManager {
       join(projectPath, basename(rawPath)),
       join(projectPath, ".swag", "assets", basename(rawPath)),
       join(projectPath, ".swag", "assets", "logo.png"),
-      join(projectPath, "DCP_logo.png"),
+      join(projectPath, ".swag", "assets", "logo.svg"),
       join(projectPath, "logo.png"),
+      join(projectPath, "logo.svg"),
+      join(projectPath, "icon.png"),
+      join(projectPath, "icon.svg"),
     ];
 
     for (const candidate of candidates) {

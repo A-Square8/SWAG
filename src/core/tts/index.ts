@@ -28,20 +28,29 @@ export class TTSManager {
 
     let synthesized = false;
 
-    // 1. Try Microsoft Edge TTS (keyless, neural voice)
-    try {
-      log.info(`Synthesizing TTS with voice "${voice}": "${text.slice(0, 50)}..."`);
-      // Dynamic import to handle ESM / CJS module boundary safely
-      const edgeModule = await import("node-edge-tts");
-      const EdgeTTS = edgeModule.EdgeTTS || (edgeModule as any).default?.EdgeTTS;
+    // 1. Try Microsoft Edge TTS (keyless, neural voice) with retry for rate limits
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        log.info(`Synthesizing TTS with voice "${voice}" (attempt ${attempt}): "${text.slice(0, 50)}..."`);
+        // Dynamic import to handle ESM / CJS module boundary safely
+        const edgeModule = await import("node-edge-tts");
+        const EdgeTTS = edgeModule.EdgeTTS || (edgeModule as any).default?.EdgeTTS;
 
-      if (EdgeTTS) {
-        const tts = new EdgeTTS({ voice });
-        await tts.ttsPromise(text, outputFilePath);
-        synthesized = await pathExists(outputFilePath);
+        if (EdgeTTS) {
+          const tts = new EdgeTTS({ voice });
+          await tts.ttsPromise(text, outputFilePath);
+          synthesized = await pathExists(outputFilePath);
+          if (synthesized) {
+            break;
+          }
+        }
+      } catch (err) {
+        log.warn(`Edge TTS attempt ${attempt} error: ${err}`);
+        if (attempt < 3) {
+          // Wait before retry to clear rate limits (e.g. 429)
+          await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+        }
       }
-    } catch (err) {
-      log.warn(`Edge TTS synthesis error: ${err}. Falling back to timed audio.`);
     }
 
     // 2. Fallback to silent timed audio if offline or service unavailable

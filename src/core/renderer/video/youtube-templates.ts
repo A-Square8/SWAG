@@ -7,6 +7,45 @@
 import type { VideoSection, Theme, BrandKit } from "../../../types/index.js";
 import { tokensToCssVars } from "../../theme/tokens.js";
 import { IconEngine } from "../../icons/index.js";
+import {
+  renderBarChart,
+  renderPieChart,
+  renderProgressRing,
+  renderSparkline,
+  type BarChartItem,
+} from "../../charts/index.js";
+import {
+  renderPipeline,
+  parsePipelineSteps,
+  renderFlowchart,
+  parseFlowchartData,
+  renderArchitectureDiagram,
+  type PipelineStep,
+  type FlowchartNode,
+  type FlowchartEdge,
+  type ArchitectureService,
+  type ArchitectureConnection,
+} from "../../diagrams/index.js";
+import {
+  renderTerminal,
+  renderCodeDiff,
+  renderGitGraph,
+  type DiffLine,
+  type GitCommit,
+} from "../../widgets/dev-widgets.js";
+import {
+  renderTestimonial,
+  renderStarRating,
+  renderFeatureMatrix,
+  renderComparisonTable,
+  parseComparisonTableData,
+  renderChecklist,
+  parseChecklistItems,
+  renderBulletPoints,
+  parseBulletItems,
+  type FeatureMatrixItem,
+} from "../../widgets/social-widgets.js";
+import { renderQRCode } from "../../widgets/branding.js";
 
 export interface RenderYouTubeSectionHtmlOptions {
   section: VideoSection;
@@ -47,7 +86,9 @@ export function generateYouTubeSectionHtml(
     ? websiteSocial.handle.replace(/^https?:\/\//, "")
     : githubSocial?.handle
       ? `github.com/${githubSocial.handle.replace(/^@/, "")}`
-      : "dirtcheapprojects.web.app";
+      : brandKit.brandName
+        ? `${brandKit.brandName.toLowerCase().replace(/[^a-z0-9]+/g, "")}.dev`
+        : "localhost:3000";
 
   let sectionBodyHtml = "";
 
@@ -68,18 +109,33 @@ export function generateYouTubeSectionHtml(
               ? renderMockupHtml(hasVideoAsset, assetDataUrl, isMobileAsset, displayUrl)
               : `
             <div class="yt-intro-highlights">
-              <div class="intro-metric-card">
-                <div class="metric-num">5</div>
-                <div class="metric-label">Adversarial AI Personas</div>
-              </div>
-              <div class="intro-metric-card">
-                <div class="metric-num">100%</div>
-                <div class="metric-label">Structured Risk & Synthesis</div>
-              </div>
-              <div class="intro-metric-card">
-                <div class="metric-num">0-Key</div>
-                <div class="metric-label">Client-Side Architecture</div>
-              </div>
+              ${
+                section.metrics && section.metrics.length > 0
+                  ? (section.metrics as Array<{ label: string; value: string | number }>)
+                      .map(
+                        (m) => `
+                <div class="intro-metric-card">
+                  <div class="metric-num">${escapeHtml(String(m.value))}</div>
+                  <div class="metric-label">${escapeHtml(m.label)}</div>
+                </div>
+              `,
+                      )
+                      .join("")
+                  : `
+                <div class="intro-metric-card">
+                  <div class="metric-num">${escapeHtml(String(projectTechStack?.length || 4))}</div>
+                  <div class="metric-label">Core Technologies</div>
+                </div>
+                <div class="intro-metric-card">
+                  <div class="metric-num">100%</div>
+                  <div class="metric-label">Automated Architecture</div>
+                </div>
+                <div class="intro-metric-card">
+                  <div class="metric-num">v1.0</div>
+                  <div class="metric-label">Production Ready</div>
+                </div>
+              `
+              }
             </div>
           `
           }
@@ -94,10 +150,10 @@ export function generateYouTubeSectionHtml(
           : projectTechStack && projectTechStack.length > 0
             ? projectTechStack
             : [
-                "Python & Async Architecture: High-concurrency agent orchestration",
-                "Google Gemini 1.5 Flash & Pro: Multi-model debate and deep synthesis",
-                "Gradio & Custom Obsidian CSS: Real-time streaming interactive dashboard",
-                "Adversarial Reasoning Matrix: Automated conflict resolution without consensus collapse",
+                "Core Engine: High-performance scalable application architecture",
+                "Type Contracts: End-to-end validated schemas and type safety",
+                "Automated Pipeline: Deterministic build and task execution",
+                "Modular Design: Clean domain separation and extensible components",
               ];
 
       const stackItems = rawItems.slice(0, 4).map((it) => {
@@ -166,15 +222,15 @@ export function generateYouTubeSectionHtml(
           section.items && section.items.length > 0
             ? section.items.slice(0, 3)
             : [
-                "Single-Model Blind Spots: Homogeneous prompts fail to identify adversarial risk vectors and multi-variable trade-offs",
-                "Premature Consensus: Generalist LLMs reach surface compromise without exposing underlying fault lines",
-                "Unquantified Decision Risk: Standard chat interfaces lack structured confidence scoring and failure probability matrices",
+                "Operational Overhead: Manual workflows and repetitive maintenance consume engineering time",
+                "Integration Complexity: Connecting fragmented tools causes fragile pipelines and high failure rates",
+                "Lack of Standardization: Inconsistent architectures lead to slow iteration cycles and technical debt",
               ];
         const parsed = parseInsightItems(problemItems, ["alert-triangle", "layers", "shield"]);
         sectionBodyHtml = `
           <div class="yt-editorial-layout">
             <div class="yt-editorial-header">
-              <div class="yt-badge">CRITICAL PROBLEM & BLIND SPOTS</div>
+              <div class="yt-badge">CRITICAL CHALLENGES</div>
               <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
               <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 240) + "...")}</p>
             </div>
@@ -213,22 +269,23 @@ export function generateYouTubeSectionHtml(
       } else {
         const workflowItems =
           section.items && section.items.length > 0
-            ? section.items.slice(0, 4)
+            ? section.items
             : [
-                "01 Ingestion: Ingests complex dilemmas and maps operational constraints",
-                "02 Deliberation: Concurrent multi-lens evaluation across 5 distinct perspectives",
-                "03 Debate: Two-round adversarial stress tests attacking flaws and assumptions",
-                "04 Verdict Engine: Synthesizes structured recommendations with confidence metrics",
+                "01 Ingestion: Ingests configuration specifications and maps constraints",
+                "02 Validation: Validates contracts, dependencies, and execution state",
+                "03 Processing: Runs core pipeline routines with high efficiency",
+                "04 Delivery: Compiles verified, production-ready deliverables",
               ];
-        const parsedSteps = parseStepItems(workflowItems, ["terminal", "cpu", "zap", "check-circle"]);
+        const parsedSteps = parseStepItems(workflowItems, ["terminal", "cpu", "zap", "check-circle", "layers", "database"]);
+        const gridCols = parsedSteps.length <= 4 ? parsedSteps.length : parsedSteps.length <= 6 ? 3 : 4;
         sectionBodyHtml = `
           <div class="yt-editorial-layout">
             <div class="yt-editorial-header">
-              <div class="yt-badge">4-STAGE REASONING PIPELINE</div>
+              <div class="yt-badge">EXECUTION WORKFLOW</div>
               <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
               <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 240) + "...")}</p>
             </div>
-            <div class="yt-pipeline-grid">
+            <div class="yt-pipeline-grid" style="grid-template-columns: repeat(${gridCols}, 1fr);">
               ${parsedSteps
                 .map(
                   (step) => `
@@ -266,9 +323,9 @@ export function generateYouTubeSectionHtml(
           section.items && section.items.length > 0
             ? section.items.slice(0, 3)
             : [
-                "Adversarial Divergence: Eliminating circular debate loops while maintaining authentic argumentative friction",
-                "Context Isolation: Dedicated sub-agent reasoning buffers preventing cross-persona semantic bleed",
-                "Quantified Synthesis: Transforming non-deterministic LLM debate arguments into actionable risk metrics",
+                "Concurrency & Scale: Managing high-throughput pipelines while guaranteeing low latency",
+                "State Isolation: Preventing cross-module bleed with strict encapsulation boundaries",
+                "Deterministic Output: Ensuring reproducible executions across diverse runtime environments",
               ];
         const parsedChallenges = parseInsightItems(challengeItems, ["git-branch", "layers", "code"]);
         sectionBodyHtml = `
@@ -315,9 +372,9 @@ export function generateYouTubeSectionHtml(
           section.items && section.items.length > 0
             ? section.items.slice(0, 3)
             : [
-                "Pluggable Council Personas: Bespoke enterprise specialists tailored for legal, compliance, and clinical governance",
-                "Multi-Model Federation: Heterogeneous agent deployment mixing Gemini, Claude, and local open weights",
-                "Continuous Benchmarking: Automated evaluation against historical real-world dilemmas and longitudinal outcomes",
+                "Ecosystem Expansion: Developing pluggable adapters for additional platforms and workflows",
+                "Performance Optimization: Profiling and caching to further reduce execution overhead",
+                "Community & Extensibility: Expanding documentation, examples, and contribution templates",
               ];
         const parsedFuture = parseInsightItems(futureItems, ["users", "globe", "database"]);
         sectionBodyHtml = `
@@ -364,16 +421,16 @@ export function generateYouTubeSectionHtml(
           section.items && section.items.length > 0
             ? section.items.slice(0, 4)
             : [
-                "The Strategist: Maximize compounding ROI, long-term leverage, and strategic market positioning",
-                "The Guardian: Stress-test downside exposure, burn rate, and institutional runway limits",
-                "The Visionary: Identify asymmetric non-linear opportunities, growth vectors, and novel paradigms",
-                "The Contrarian: Interrogate hidden cognitive biases, unstated assumptions, and fatal blind spots",
+                "High Performance: Optimized execution paths delivering instant feedback loops",
+                "Modular Design: Decoupled components that integrate cleanly with existing tooling",
+                "Zero Configuration: Sensible defaults that work seamlessly out of the box",
+                "Strict Reliability: Fully validated inputs and resilient error handling throughout",
               ];
         const parsedFeatures = parseInsightItems(featureItems, ["trending-up", "shield", "zap", "eye"]);
         sectionBodyHtml = `
           <div class="yt-editorial-layout">
             <div class="yt-editorial-header">
-              <div class="yt-badge">MULTI-PERSPECTIVE COUNCIL</div>
+              <div class="yt-badge">CORE CAPABILITIES</div>
               <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
               <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 240) + "...")}</p>
             </div>
@@ -394,6 +451,348 @@ export function generateYouTubeSectionHtml(
         `;
       }
       break;
+
+    // --- 10 New YouTube Section Archetypes ---
+
+    case "metrics": {
+      const metricList = (section.metrics as Array<{ label: string; value: string | number }>) || [
+        { label: "Active Nodes", value: "12,500+" },
+        { label: "Avg Request Latency", value: "<8.2ms" },
+        { label: "Throughput / Sec", value: "85,000" },
+        { label: "WCAG Compliance", value: "100% AAA" },
+      ];
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">QUANTIFIED IMPACT</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+            <div style="margin-top: 20px;">
+              ${renderProgressRing(98, { size: 130, label: "98%", sublabel: "HEALTH" })}
+            </div>
+          </div>
+          <div class="yt-right-panel">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%;">
+              ${metricList
+                .map(
+                  (m) => `
+                <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--swag-border); border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                  <div style="font-size: 42px; font-weight: 800; color: #38bdf8;">${escapeHtml(String(m.value))}</div>
+                  <div style="font-size: 16px; font-weight: 600; color: var(--swag-muted-fg); margin-top: 6px;">${escapeHtml(m.label)}</div>
+                  <div style="margin-top: 12px;">${renderSparkline([15, 30, 45, 60, 80, 95], { width: 140, height: 35, color: "#38bdf8" })}</div>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "comparison":
+    case "comparison-table": {
+      const rawTable =
+        section.tableData ||
+        section.data?.table ||
+        section.data?.items ||
+        section.data?.matrix ||
+        section.data?.rows ||
+        section.items;
+      const compTableData = parseComparisonTableData(rawTable, brandKit.brandName || "This Project");
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">FEATURE COMPARISON</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderComparisonTable(compTableData, { ourName: brandKit.brandName || "This Project" })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "code-walkthrough": {
+      const diffLines: DiffLine[] = (section.data?.diffLines as DiffLine[]) || [
+        { type: "normal", content: "export async function executePipeline(config) {" },
+        { type: "del", content: "-   const result = await legacySynchronousProcess(config);" },
+        { type: "add", content: "+   const result = await optimizedAsyncEngine(config);" },
+        { type: "add", content: "+   await cacheStore.set(result.id, result.payload);" },
+        { type: "normal", content: "    return { success: true, data: result };" },
+        { type: "normal", content: "}" },
+      ];
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">CODE WALKTHROUGH</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+            ${
+              section.items && section.items.length > 0
+                ? `<div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
+                     ${section.items.map((it) => `<div style="font-size: 16px; color: var(--swag-fg);">• ${escapeHtml(it)}</div>`).join("")}
+                   </div>`
+                : ""
+            }
+          </div>
+          <div class="yt-right-panel">
+            ${renderCodeDiff(diffLines, { filename: (section.data?.filename as string) || "src/pipeline.ts" })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "architecture": {
+      const services: ArchitectureService[] = (section.diagramData?.services as ArchitectureService[]) || [
+        { id: "client", name: "Client / User", category: "client", x: 40, y: 150 },
+        { id: "gateway", name: brandKit.brandName ? `${brandKit.brandName} API` : "Core Gateway", category: "gateway", x: 260, y: 150 },
+        { id: "engine", name: "Processing Engine", category: "service", x: 480, y: 80 },
+        { id: "storage", name: "State & Output", category: "service", x: 480, y: 220 },
+      ];
+      const connections: ArchitectureConnection[] = (section.diagramData?.connections as ArchitectureConnection[]) || [
+        { from: "client", to: "gateway", label: "Request" },
+        { from: "gateway", to: "engine", label: "Process" },
+        { from: "gateway", to: "storage", label: "Persist" },
+      ];
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">SYSTEM TOPOLOGY</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderArchitectureDiagram(services, connections, { width: 780, height: 380 })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "workflow": {
+      const diagramObj = section.diagramData as Record<string, unknown> | undefined;
+      const rawNodes = section.nodes || diagramObj?.nodes;
+      if (rawNodes && Array.isArray(rawNodes) && rawNodes.length > 0) {
+        const flowchartData = parseFlowchartData(
+          diagramObj ?? { nodes: rawNodes, edges: section.edges },
+        );
+        sectionBodyHtml = `
+          <div class="yt-split-view">
+            <div class="yt-left-panel">
+              <div class="yt-badge">DECISION FLOWCHART</div>
+              <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+              <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+            </div>
+            <div class="yt-right-panel">
+              ${renderFlowchart(flowchartData.nodes, flowchartData.edges, { width: 800, height: 380, title: section.title })}
+            </div>
+          </div>
+        `;
+        break;
+      }
+
+      const rawSteps =
+        section.steps ||
+        section.diagramData?.steps ||
+        section.data?.steps ||
+        section.items;
+      const steps: PipelineStep[] = parsePipelineSteps(rawSteps);
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">WORKFLOW PIPELINE</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderPipeline(steps, { width: 820, height: 260 })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "decision-graph":
+    case "flowchart": {
+      const flowchartData = parseFlowchartData(
+        section.diagramData ||
+        section.data ||
+        (section.nodes ? { nodes: section.nodes, edges: section.edges } : section.items),
+      );
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">DECISION ARCHITECTURE</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderFlowchart(flowchartData.nodes, flowchartData.edges, { width: 820, height: 380, title: section.title })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "checklist": {
+      const checkItems = parseChecklistItems(
+        section.checklistData ||
+        section.data?.checklist ||
+        section.items,
+      );
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">VERIFIED SPECIFICATION</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderChecklist(checkItems, { columns: checkItems.length > 5 ? 2 : 1 })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "bullet-points": {
+      const bulletItems = parseBulletItems(
+        section.items ||
+        section.data?.bullets ||
+        section.data?.items,
+      );
+      sectionBodyHtml = `
+        <div class="yt-editorial-layout">
+          <div class="yt-editorial-header">
+            <div class="yt-badge">KEY HIGHLIGHTS</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 220) + "...")}</p>
+          </div>
+          <div style="width: 100%; max-width: 1200px; margin: 0 auto;">
+            ${renderBulletPoints(bulletItems, { columns: bulletItems.length > 4 ? 2 : 1 })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "testimonials": {
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">ENGINEERING PRAISE</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+            <div style="margin-top: 20px;">
+              ${renderStarRating({ rating: 5.0, reviewCount: "2,400+" })}
+            </div>
+          </div>
+          <div class="yt-right-panel">
+            ${renderTestimonial({
+              quote: (section.data?.quote as string) || "Exceptional architecture and seamless developer experience. It solved our pipeline bottlenecks immediately.",
+              author: (section.data?.author as string) || "Verified Engineer",
+              role: (section.data?.role as string) || "Staff Systems Architect",
+              company: (section.data?.company as string) || "Engineering Community",
+            })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "timeline": {
+      const items = section.items && section.items.length > 0 ? section.items : [
+        "Phase 1: Architecture Planning & Core Engine",
+        "Phase 2: High-Throughput Processing Pipeline",
+        "Phase 3: Automated Validation & Strict Testing",
+        "Phase 4: Production Release & Ecosystem Integration",
+      ];
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">ROADMAP & MILESTONES</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            <div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
+              ${items
+                .map(
+                  (it, idx) => `
+                <div style="display: flex; align-items: center; gap: 18px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--swag-border); border-radius: 12px; padding: 18px 24px;">
+                  <span style="font-size: 13px; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 4px 10px; border-radius: 6px;">0${idx + 1}</span>
+                  <span style="font-size: 18px; font-weight: 600; color: #f8fafc;">${escapeHtml(it)}</span>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "benchmarks": {
+      const benchData: BarChartItem[] = (section.chartData as unknown as BarChartItem[]) || [
+        { label: brandKit.brandName || "Optimized Build", value: 380, formattedValue: "380 ops/s" },
+        { label: "Baseline Engine", value: 95, formattedValue: "95 ops/s" },
+        { label: "Legacy Setup", value: 18, formattedValue: "18 ops/s" },
+      ];
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">BENCHMARK AUDIT</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderBarChart(benchData, { width: 780, height: 380, layout: "horizontal", title: "Throughput (Operations / sec)" })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "git-history": {
+      const commits: GitCommit[] = (section.data?.commits as GitCommit[]) || [
+        { hash: "a8f3c12", message: "feat: core architecture & modular pipeline", tag: "v1.0.0" },
+        { hash: "7b10e45", message: "perf: concurrent task processing & caching", branch: "main" },
+        { hash: "2c94d67", message: "fix: strict contract validation & error handling", branch: "main" },
+      ];
+      sectionBodyHtml = `
+        <div class="yt-split-view">
+          <div class="yt-left-panel">
+            <div class="yt-badge">OPEN SOURCE EVOLUTION</div>
+            <h2 class="yt-section-title">${escapeHtml(section.title)}</h2>
+            <p class="yt-desc">${escapeHtml(section.onScreenText || section.narrationText.slice(0, 180) + "...")}</p>
+          </div>
+          <div class="yt-right-panel">
+            ${renderGitGraph(commits, { width: 760, height: 260 })}
+          </div>
+        </div>
+      `;
+      break;
+    }
+
+    case "call-to-action": {
+      sectionBodyHtml = `
+        <div class="yt-outro-card">
+          <div class="yt-badge">GET STARTED NOW</div>
+          <h1 class="yt-hero-title">${escapeHtml(section.title || "Star & Fork on GitHub")}</h1>
+          <p class="yt-desc">${escapeHtml(section.onScreenText || "Scan the QR code or visit the repository link below to get started.")}</p>
+          <div style="margin-top: 24px;">
+            ${renderQRCode(displayUrl, { size: 180, label: "SCAN TO VIEW CODE" })}
+          </div>
+        </div>
+      `;
+      break;
+    }
 
     case "demo":
     default:
@@ -419,9 +818,9 @@ export function generateYouTubeSectionHtml(
           section.items && section.items.length > 0
             ? section.items.slice(0, 3)
             : [
-                "Adversarial Decision Architecture: Stress-tests critical decisions using opposing AI personas",
-                "Live Multi-Model Streaming: Real-time debate visualization built on Google Gemini and Gradio",
-                "Quantified Confidence Metrics: Definitive synthesis backed by structured risk assessment",
+                "High-Throughput Processing: Engineered for real-time responsiveness and scale",
+                "Contract Enforcement: Strict runtime verification ensuring predictable results",
+                "Extensible Tooling: Seamless integration with modern development workflows",
               ];
         const parsed = parseInsightItems(fallbackItems, ["zap", "cpu", "check-circle"]);
         sectionBodyHtml = `

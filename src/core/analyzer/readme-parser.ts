@@ -52,7 +52,10 @@ export async function parseReadme(projectPath: string): Promise<ReadmeHints | nu
   // Extract project name from first H1
   const h1Match = content.match(/^#\s+(.+)$/m);
   if (h1Match) {
-    hints.name = h1Match[1].trim().replace(/[🚀✨💫🎉🔥⭐️]/g, "").trim();
+    hints.name = h1Match[1]
+      .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   // Extract description from first paragraph after H1

@@ -52,10 +52,26 @@ export function registerGetTheme(server: McpServer): void {
 export function registerSetTheme(server: McpServer): void {
   server.tool(
     "set_theme",
-    "Set or override the project's design theme tokens (colors, typography, spacing) or apply a preset ('dark' or 'light').",
+    "Set or override the project's design theme tokens (colors, typography, spacing) or apply a preset (e.g. 'nord', 'dracula', 'catppuccin', 'tokyo-night', 'cyberpunk', etc.).",
     {
       projectPath: z.string().describe("Absolute path to the project root directory"),
-      preset: z.enum(["dark", "light"]).optional().describe("Apply built-in preset"),
+      preset: z
+        .enum([
+          "dark",
+          "light",
+          "nord",
+          "dracula",
+          "monokai",
+          "solarized-dark",
+          "solarized-light",
+          "github-dark",
+          "catppuccin",
+          "tokyo-night",
+          "rose-pine",
+          "cyberpunk",
+        ])
+        .optional()
+        .describe("Apply built-in preset"),
       theme: z.record(z.unknown()).optional().describe("Partial theme or token overrides"),
     },
     async (args) => {

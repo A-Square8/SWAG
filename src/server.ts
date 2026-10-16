@@ -17,6 +17,17 @@ import { registerRenderInstagramReel } from "./tools/render-instagram-reel.js";
 import { registerRenderYoutubeVideo } from "./tools/render-youtube-video.js";
 import { registerListOutputs } from "./tools/list-outputs.js";
 import { registerOpenGui } from "./tools/open-gui.js";
+
+// New tools
+import { registerRenderTwitterPost } from "./tools/render-twitter-post.js";
+import { registerRenderLinkedInPost } from "./tools/render-linkedin-post.js";
+import { registerRenderGithubSocial } from "./tools/render-github-social.js";
+import { registerRenderThumbnail } from "./tools/render-thumbnail.js";
+import { registerBatchRender } from "./tools/batch-render.js";
+import { registerExportBundle } from "./tools/export-bundle.js";
+import { registerPreviewSlide } from "./tools/preview-slide.js";
+import { registerValidatePlan } from "./tools/validate-plan.js";
+
 import { logger } from "./utils/logger.js";
 
 const log = logger.child("server");
@@ -59,7 +70,17 @@ export function createServer(): McpServer {
   registerListOutputs(server);
   registerOpenGui(server);
 
-  log.info("All tools registered");
+  // Expanded Tools: Twitter, LinkedIn, GitHub, Thumbnail, Batch, Bundle, Preview, Validation
+  registerRenderTwitterPost(server);
+  registerRenderLinkedInPost(server);
+  registerRenderGithubSocial(server);
+  registerRenderThumbnail(server);
+  registerBatchRender(server);
+  registerExportBundle(server);
+  registerPreviewSlide(server);
+  registerValidatePlan(server);
+
+  log.info("All 21 tools registered");
 
   return server;
 }

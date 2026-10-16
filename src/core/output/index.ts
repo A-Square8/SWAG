@@ -21,7 +21,7 @@ export class OutputManager {
    */
   public static async getNextVersionFolder(
     projectPath: string,
-    platform: "instagram-post" | "instagram-reel" | "youtube",
+    platform: "instagram-post" | "instagram-reel" | "youtube" | "twitter" | "linkedin" | "github" | "thumbnail" | string,
     baseOutputDir = "swag-output",
   ): Promise<OutputFolderInfo> {
     const platformDir = join(projectPath, baseOutputDir, platform);
@@ -74,7 +74,7 @@ export class OutputManager {
    */
   public static async listOutputs(
     projectPath: string,
-    platformFilter?: "instagram-post" | "instagram-reel" | "youtube",
+    platformFilter?: string,
     baseOutputDir = "swag-output",
   ): Promise<OutputEntry[]> {
     const baseDir = join(projectPath, baseOutputDir);
@@ -82,9 +82,17 @@ export class OutputManager {
       return [];
     }
 
-    const platforms = platformFilter
-      ? [platformFilter]
-      : (["instagram-post", "instagram-reel", "youtube"] as const);
+    let platforms: string[] = [];
+    if (platformFilter) {
+      platforms = [platformFilter];
+    } else {
+      try {
+        const topDirs = await readdir(baseDir, { withFileTypes: true });
+        platforms = topDirs.filter((d) => d.isDirectory()).map((d) => d.name);
+      } catch {
+        platforms = ["instagram-post", "instagram-reel", "youtube", "twitter", "linkedin", "github", "thumbnail"];
+      }
+    }
 
     const results: OutputEntry[] = [];
 

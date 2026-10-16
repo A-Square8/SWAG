@@ -1,5 +1,5 @@
 /**
- * Theme Engine — manages themes, IDE theme auto-detection, and contrast verification.
+ * Theme Engine — manages themes, IDE theme auto-detection, presets, and contrast verification.
  */
 
 import type { Theme } from "../../types/index.js";
@@ -8,11 +8,50 @@ import { safeReadJson, safeWriteJson, pathExists, join } from "../../utils/fs.js
 import { logger } from "../../utils/logger.js";
 import { DARK_THEME } from "./presets/dark.js";
 import { LIGHT_THEME } from "./presets/light.js";
+import { NORD_THEME } from "./presets/nord.js";
+import { DRACULA_THEME } from "./presets/dracula.js";
+import { MONOKAI_THEME } from "./presets/monokai.js";
+import { SOLARIZED_DARK_THEME } from "./presets/solarized-dark.js";
+import { SOLARIZED_LIGHT_THEME } from "./presets/solarized-light.js";
+import { GITHUB_DARK_THEME } from "./presets/github-dark.js";
+import { CATPPUCCIN_THEME } from "./presets/catppuccin.js";
+import { TOKYO_NIGHT_THEME } from "./presets/tokyo-night.js";
+import { ROSE_PINE_THEME } from "./presets/rose-pine.js";
+import { CYBERPUNK_THEME } from "./presets/cyberpunk.js";
 import { detectIdeTheme } from "./ide-detector.js";
 import { validateThemeContrast } from "./contrast.js";
 
 const log = logger.child("theme");
 const THEME_FILE = join(".swag", "theme.json");
+
+export const BUILTIN_THEMES: Record<string, Theme> = {
+  dark: DARK_THEME,
+  light: LIGHT_THEME,
+  nord: NORD_THEME,
+  dracula: DRACULA_THEME,
+  monokai: MONOKAI_THEME,
+  "solarized-dark": SOLARIZED_DARK_THEME,
+  "solarized-light": SOLARIZED_LIGHT_THEME,
+  "github-dark": GITHUB_DARK_THEME,
+  catppuccin: CATPPUCCIN_THEME,
+  "tokyo-night": TOKYO_NIGHT_THEME,
+  "rose-pine": ROSE_PINE_THEME,
+  cyberpunk: CYBERPUNK_THEME,
+};
+
+export type BuiltinThemeId =
+  | "dark"
+  | "light"
+  | "nord"
+  | "dracula"
+  | "monokai"
+  | "solarized-dark"
+  | "solarized-light"
+  | "github-dark"
+  | "catppuccin"
+  | "tokyo-night"
+  | "rose-pine"
+  | "cyberpunk";
 
 export interface ThemeResult {
   theme: Theme;
@@ -21,6 +60,13 @@ export interface ThemeResult {
 }
 
 export class ThemeEngine {
+  /**
+   * Get all registered built-in theme presets.
+   */
+  public static getBuiltinThemes(): Record<string, Theme> {
+    return BUILTIN_THEMES;
+  }
+
   /**
    * Get the active theme for a project.
    */
@@ -71,14 +117,12 @@ export class ThemeEngine {
   public static async setTheme(
     projectPath: string,
     themeUpdate?: Partial<Theme>,
-    preset?: "dark" | "light",
+    preset?: BuiltinThemeId | string,
   ): Promise<{ theme: Theme; contrastWarnings: string[] }> {
     let baseTheme = DARK_THEME;
 
-    if (preset === "light") {
-      baseTheme = LIGHT_THEME;
-    } else if (preset === "dark") {
-      baseTheme = DARK_THEME;
+    if (preset && BUILTIN_THEMES[preset]) {
+      baseTheme = BUILTIN_THEMES[preset];
     } else {
       const current = await this.getTheme(projectPath);
       baseTheme = current.theme;
@@ -107,7 +151,11 @@ export class ThemeEngine {
 
     const finalTheme: Theme = {
       id: themeUpdate?.id || (preset ? `preset-${preset}` : "custom"),
-      name: themeUpdate?.name || (preset ? (preset === "dark" ? DARK_THEME.name : LIGHT_THEME.name) : "Custom Theme"),
+      name:
+        themeUpdate?.name ||
+        (preset && BUILTIN_THEMES[preset]
+          ? BUILTIN_THEMES[preset].name
+          : "Custom Theme"),
       source: preset ? "preset" : "custom",
       tokens: mergedTokens,
     };

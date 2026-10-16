@@ -114,7 +114,7 @@ Add to your project's `.mcp.json` or `~/.claude/mcp.json`:
 
 ## 🛠️ MCP Tools Reference
 
-SWAG exposes **13 specialized MCP tools**:
+SWAG exposes **21 specialized MCP tools**:
 
 ### 1. Project Analysis & Server Control
 - **`analyze_project`**: Inspects package manifests, Python requirements, and READMEs. Detects frameworks (Next.js, Vite, React, Vue, Svelte, Astro, FastAPI, Flask, Streamlit), ports, and start scripts.
@@ -126,17 +126,27 @@ SWAG exposes **13 specialized MCP tools**:
 
 ### 3. Theming & Brand Identity
 - **`get_theme`**: Detects current theme (auto-discovers VS Code / Cursor / Zed active themes) and runs WCAG AA contrast validation.
-- **`set_theme`**: Updates design tokens (colors, typography, radii) or applies presets (`dark`, `light`).
+- **`set_theme`**: Updates design tokens (colors, typography, radii) or applies presets (12 built-in: `obsidian-night`, `alabaster-clean`, `nord`, `dracula`, `monokai`, `solarized-dark`, `solarized-light`, `github-dark`, `catppuccin`, `tokyo-night`, `rose-pine`, `cyberpunk`).
 - **`get_brand_kit` / `set_brand_kit`**: Manages developer handle, avatar, logo, font, and outro configurations across project or global (`~/.swag/brand.json`) scopes.
-- **`get_style_presets`**: Lists voice & tone presets (`Professional`, `Casual`, `Minimalist`, `Artistic`, `Humorous`).
+- **`get_style_presets`**: Lists 10 voice & tone presets (`modern-developer`, `bold-tech`, `minimalist-designer`, `playful-maker`, `enterprise-saas`, `storyteller`, `tutorial`, `hype`, `corporate`, `indie`).
 
-### 4. Content Planning & Rendering
-- **`plan_content`**: The creative handoff! Returns the exact schema your host agent needs to fill, paired with project context, available asset IDs, and style guidance.
-- **`render_instagram_post`**: Takes an agent-filled `PostPlan` and generates 1080×1350 PNG slides with browser frames and typography.
-- **`render_instagram_reel`**: Takes an agent-filled `ReelPlan`, generates Edge TTS audio, animates card layouts, and outputs a 1080×1920 MP4 video.
-- **`render_youtube_video`**: Takes a `YouTubeVideoPlan`, synthesizes voiceover, and exports 16:9 `video.mp4`, `subtitles.srt`, YouTube chapter markers, and `script.md`.
+### 4. Content Planning & Validation
+- **`plan_content`**: The creative handoff! Returns the exact schema your host agent needs to fill, paired with project context, available asset IDs, and style guidance across 53 template archetypes.
+- **`validate_plan`**: Validates a draft plan against schema, asset availability, contrast ratios, and recommended limits before rendering.
+- **`preview_slide`**: Fast single-slide / single-scene preview generation without full bundle rendering.
 
-### 5. Outputs & Studio GUI
+### 5. Multi-Platform Rendering
+- **`render_instagram_post`**: Renders 1080×1350 PNG slides (20 slide archetypes) with browser/device frames, charts, diagrams, and typography.
+- **`render_instagram_reel`**: Renders 1080×1920 9:16 vertical short-form MP4 videos with Edge TTS voiceover, animated captions, and safe-zone compliance.
+- **`render_youtube_video`**: Renders 1920×1080 16:9 widescreen video with synchronized voiceover, chapter markers, `.srt` subtitles, and markdown script.
+- **`render_twitter_post`**: Generates 16:9 landscape (1200×675) cards tailored for Twitter/X feeds and threads.
+- **`render_linkedin_post`**: Generates 4:5 or 1:1 professional showcase cards with executive stat callouts and quotes.
+- **`render_github_social`**: Generates crisp 1280×640 OpenGraph repository preview cards with stats, tech badges, and branding.
+- **`render_thumbnail`**: Generates high-CTR 1280×720 YouTube and blog thumbnails with vibrant badges, hooks, and avatar overlays.
+- **`batch_render`**: Renders all target platforms simultaneously from unified plans in a single coordinated command.
+
+### 6. Outputs, Bundles & Studio GUI
+- **`export_bundle`**: Packages generated assets, media files, and markdown copy into ready-to-publish ZIP archives.
 - **`list_outputs`**: Lists version history, generated files, and metadata summaries across all platforms.
 - **`open_gui`**: Launches the local interactive web dashboard and returns the URL.
 

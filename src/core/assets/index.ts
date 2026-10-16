@@ -4,7 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { extname, basename } from "node:path";
-import { copyFile, stat } from "node:fs/promises";
+import { copyFile, stat, rm } from "node:fs/promises";
 import type { Asset, AssetCatalog } from "../../types/index.js";
 import { AssetCatalogSchema, AssetSchema } from "../../types/asset.js";
 import {
@@ -198,5 +198,31 @@ export class AssetManager {
     };
 
     return await this.addAsset(projectPath, asset);
+  }
+
+  /**
+   * Delete an asset from catalog and disk.
+   */
+  public static async deleteAsset(projectPath: string, assetId: string): Promise<boolean> {
+    const catalog = await this.getCatalog(projectPath);
+    const asset = catalog.assets.find((a) => a.id === assetId);
+    if (!asset) {
+      return false;
+    }
+
+    catalog.assets = catalog.assets.filter((a) => a.id !== assetId);
+    await this.saveCatalog(projectPath, catalog);
+
+    const fullPath = join(projectPath, asset.filePath);
+    if (await pathExists(fullPath)) {
+      try {
+        await rm(fullPath, { force: true });
+      } catch (err) {
+        log.warn(`Could not remove asset file on disk: ${fullPath} - ${err}`);
+      }
+    }
+
+    log.info(`Deleted asset ${assetId}`);
+    return true;
   }
 }

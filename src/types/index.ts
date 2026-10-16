@@ -50,6 +50,13 @@ export type {
   RawDemoConfig,
   YouTubeVideoPlan,
   PlatformPlan,
+  ComparisonTableRow,
+  ComparisonTableData,
+  ChecklistItem,
+  BulletPointItem,
+  FlowchartNode,
+  FlowchartEdge,
+  FlowchartData,
 } from "./content.js";
 export {
   PostSlideSchema,
@@ -60,6 +67,13 @@ export {
   VideoSectionSchema,
   RawDemoConfigSchema,
   YouTubeVideoPlanSchema,
+  ComparisonTableRowSchema,
+  ComparisonTableDataSchema,
+  ChecklistItemSchema,
+  BulletPointItemSchema,
+  FlowchartNodeSchema,
+  FlowchartEdgeSchema,
+  FlowchartDataSchema,
 } from "./content.js";
 
 export type {

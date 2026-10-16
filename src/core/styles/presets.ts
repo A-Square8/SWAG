@@ -140,10 +140,150 @@ export const HUMOROUS_STYLE: StylePreset = {
   },
 };
 
+export const STORYTELLER_STYLE: StylePreset = {
+  id: "storyteller",
+  name: "Storyteller",
+  builtIn: true,
+  tone: {
+    voice: "Compelling narrative arc, dramatic tension, problem-to-breakthrough journey.",
+    vocabulary: "Journey, discovery, bottleneck, turning point, breakthrough, resolution.",
+    emojiUsage: "minimal",
+    hashtagStyle: "Narrative & tech journey tags (#devstory #buildjourney #techjourney)",
+    hookStyle: "Narrative tension or personal struggle that led to a solution.",
+    exampleHook: "We had a problem that cost us 3 days of downtime — here's how we solved it.",
+  },
+  visual: {
+    templateSet: "storyteller",
+    motionIntensity: "moderate",
+    transitionSet: ["fade", "slide-up"],
+    pacingBPM: 95,
+    captionStyle: "highlight",
+  },
+  defaults: {
+    slideCount: { min: 5, max: 8 },
+    reelDuration: { min: 35, max: 60 },
+    videoDuration: { min: 180, max: 300 },
+    hashtagCount: 6,
+  },
+};
+
+export const TUTORIAL_STYLE: StylePreset = {
+  id: "tutorial",
+  name: "Tutorial",
+  builtIn: true,
+  tone: {
+    voice: "Pedagogical, clear step-by-step guidance, encouraging, structured.",
+    vocabulary: "Step, configure, install, execute, verify, prerequisite, output.",
+    emojiUsage: "moderate",
+    hashtagStyle: "Educational tech tags (#learntocode #webdevtips #codingtutorial)",
+    hookStyle: "Direct promise of a practical skill acquired in minutes.",
+    exampleHook: "Build and deploy a full-stack MCP server in under 5 minutes.",
+  },
+  visual: {
+    templateSet: "tutorial",
+    motionIntensity: "subtle",
+    transitionSet: ["slide-right", "fade"],
+    pacingBPM: 100,
+    captionStyle: "boxed",
+  },
+  defaults: {
+    slideCount: { min: 5, max: 9 },
+    reelDuration: { min: 30, max: 55 },
+    videoDuration: { min: 240, max: 360 },
+    hashtagCount: 6,
+  },
+};
+
+export const HYPE_STYLE: StylePreset = {
+  id: "hype",
+  name: "Hype Beast",
+  builtIn: true,
+  tone: {
+    voice: "High-octane, punchy, trend-aware, breathless excitement.",
+    vocabulary: "Insane, 10x, game-changer, revolutionary, unreal, unlock, supercharged.",
+    emojiUsage: "heavy",
+    hashtagStyle: "Trending dev and AI tags (#technews #nextlevel #devhype #viral)",
+    hookStyle: "Jaw-dropping claim or bold superlatives that stop the scroll immediately.",
+    exampleHook: "This tool is INSANE 🔥 Let me show you what it does in 30 seconds.",
+  },
+  visual: {
+    templateSet: "hype",
+    motionIntensity: "dynamic",
+    transitionSet: ["pop", "scale"],
+    pacingBPM: 135,
+    captionStyle: "karaoke",
+  },
+  defaults: {
+    slideCount: { min: 4, max: 6 },
+    reelDuration: { min: 15, max: 30 },
+    videoDuration: { min: 120, max: 180 },
+    hashtagCount: 10,
+  },
+};
+
+export const CORPORATE_STYLE: StylePreset = {
+  id: "corporate",
+  name: "Corporate",
+  builtIn: true,
+  tone: {
+    voice: "Executive-ready, enterprise-safe, polished, metric-driven, formal.",
+    vocabulary: "ROI, operational efficiency, compliance, throughput, enterprise, stakeholders.",
+    emojiUsage: "none",
+    hashtagStyle: "B2B and enterprise hashtags (#enterprisetech #cloudnative #b2b #fintech)",
+    hookStyle: "Stating business impact, cost reduction, or compliance enhancement.",
+    exampleHook: "Introducing a solution that reduces cloud infrastructure costs by 42%.",
+  },
+  visual: {
+    templateSet: "corporate",
+    motionIntensity: "subtle",
+    transitionSet: ["fade"],
+    pacingBPM: 85,
+    captionStyle: "minimal",
+  },
+  defaults: {
+    slideCount: { min: 4, max: 6 },
+    reelDuration: { min: 20, max: 40 },
+    videoDuration: { min: 150, max: 210 },
+    hashtagCount: 4,
+  },
+};
+
+export const INDIE_STYLE: StylePreset = {
+  id: "indie",
+  name: "Indie Hacker",
+  builtIn: true,
+  tone: {
+    voice: "Authentic, raw, build-in-public, humble yet ambitious, transparent.",
+    vocabulary: "Shipped, MRR, solo dev, weekend project, customer feedback, bootstrap.",
+    emojiUsage: "moderate",
+    hashtagStyle: "Indie hacker community (#buildinpublic #indiehackers #solodev #bootstrap)",
+    hookStyle: "Sharing unfiltered numbers, timeline, or honest retrospective.",
+    exampleHook: "Month 3 of building this in public as a solo developer: here is what I shipped.",
+  },
+  visual: {
+    templateSet: "indie",
+    motionIntensity: "moderate",
+    transitionSet: ["slide-up", "fade"],
+    pacingBPM: 105,
+    captionStyle: "highlight",
+  },
+  defaults: {
+    slideCount: { min: 4, max: 7 },
+    reelDuration: { min: 25, max: 45 },
+    videoDuration: { min: 150, max: 240 },
+    hashtagCount: 7,
+  },
+};
+
 export const ALL_STYLE_PRESETS: StylePreset[] = [
   PROFESSIONAL_STYLE,
   CASUAL_STYLE,
   MINIMALIST_STYLE,
   ARTISTIC_STYLE,
   HUMOROUS_STYLE,
+  STORYTELLER_STYLE,
+  TUTORIAL_STYLE,
+  HYPE_STYLE,
+  CORPORATE_STYLE,
+  INDIE_STYLE,
 ];

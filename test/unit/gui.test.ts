@@ -115,7 +115,7 @@ describe("GUI Server & Output Manager Integration", () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as any;
     expect(json.success).toBe(true);
-    expect(json.presets.length).toBe(5);
+    expect(json.presets.length).toBe(10);
   });
 
   it("should return output history via /api/outputs", async () => {
